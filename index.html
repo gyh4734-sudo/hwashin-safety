@@ -432,11 +432,9 @@
             });
         }
 
-        // 이미지 Base64 데이터를 Storage에 올린 뒤 HTTP 다운로드 URL을 반환하는 내부 함수
         async function uploadImageToStorage(dataUrl, prefix) {
             if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl || '';
             
-            // 이미 Storage URL 형태인 경우 그대로 반환
             if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) {
                 return dataUrl;
             }
@@ -444,7 +442,6 @@
             const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
             const storageRef = ref(storage, `images/${fileName}`);
             
-            // Base64 Data URL을 Storage에 직접 업로드
             const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
             return await getDownloadURL(snapshot.ref);
         }
@@ -453,7 +450,6 @@
             try {
                 window.showToast('이미지 업로드 및 저장 중...');
 
-                // 1. Base64 이미지를 Firebase Storage로 자동으로 업로드 후 URL 확보
                 if (recordData.beforeImg) {
                     recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
                 }
@@ -461,7 +457,6 @@
                     recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
                 }
 
-                // 2. 확보된 URL을 포함해 Firestore에 기록
                 if (window.editingId) {
                     const docRef = doc(db, "checklists", window.editingId);
                     await updateDoc(docRef, recordData);
@@ -478,7 +473,6 @@
             }
         };
 
-        // PPT 등 일괄 저장을 위한 전용 함수 (Storage 자동 업로드 연동)
         window.batchSaveToFirestore = async function(recordsArray) {
             try {
                 window.showToast('이미지 업로드 및 데이터 복원 중...');
@@ -638,7 +632,6 @@
             refreshDataView();
         }
 
-        // 개선후 사진 존재 여부 검사 헬퍼 함수
         function hasAfterImage(row) {
             return !!(row && row.afterImg && String(row.afterImg).trim() !== '');
         }
@@ -652,7 +645,6 @@
             let fList = pList;
             const sF = document.getElementById('col-filter-status').value, tF = document.getElementById('col-filter-type').value, tgF = document.getElementById('col-filter-target').value;
             
-            // 수정: 날짜 유무가 아닌 실제 개선후 사진(afterImg)이 있을 때만 개선후로 필터링
             if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? hasAfterImage(i) : !hasAfterImage(i));
             if(tF !== 'all') fList = fList.filter(i => i.type === tF);
             if(tgF !== 'all') fList = fList.filter(i => i.target === tgF);
@@ -675,7 +667,6 @@
             const counts = TARGET_TEAMS.map(team => {
                 const items = pData.filter(d => d.target === team);
                 const iC = items.length;
-                // 수정: 개선후 사진이 존재하는 경우만 개선 건수로 집계
                 const dC = items.filter(d => hasAfterImage(d)).length;
                 const uC = iC - dC;
                 sumI += iC; sumD += dC; sumU += uC;
@@ -699,7 +690,6 @@
             const tbody = document.getElementById('data-list-body'); tbody.innerHTML = '';
             list.forEach((row, idx) => {
                 const tr = document.createElement('tr'); if(editingId === row.id) tr.className = 'selected-row';
-                // 수정: 개선후 사진이 첨부된 건만 '개선후' 배지로 표시
                 const isAfter = hasAfterImage(row);
                 tr.onclick = () => loadRecordForEdit(row.id);
                 tr.innerHTML = `
@@ -904,13 +894,27 @@
             }
         }
 
-        function exportToExcel() {
-            const list = getPeriodFilteredData();
-            if(list.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+        // 체크박스 선택 대상 항목 가져오는 공통 헬퍼 함수
+        function getTargetExportData() {
+            const periodList = getPeriodFilteredData();
+            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             
-            const excelData = list.map((item, idx) => ({
+            if (checkedBoxes.length > 0) {
+                const checkedIds = Array.from(checkedBoxes).map(cb => cb.value);
+                return periodList.filter(item => checkedIds.includes(item.id));
+            }
+            return periodList;
+        }
+
+        function exportToExcel() {
+            const exportList = getTargetExportData();
+            if(exportList.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+            
+            const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+            showToast(checkedCount > 0 ? `선택한 ${checkedCount}건 엑셀 추출 중...` : '전체 목록 엑셀 추출 중...');
+
+            const excelData = exportList.map((item, idx) => ({
                 '번호': idx + 1,
-                // 수정: Excel 내보내기 시에도 사진 유무 기준 개선후 판정
                 '구분': hasAfterImage(item) ? '개선후' : '개선전',
                 '점검분류': item.category,
                 '공장식별': item.seqCode,
@@ -933,14 +937,19 @@
 
         function exportToPPT() {
             try {
-                const list = getPeriodFilteredData();
-                if(list.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+                const exportList = getTargetExportData();
+                if(exportList.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
 
-                let pptx = new PptxGenJS();
+                const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+                showToast(checkedCount > 0 ? `선택한 ${checkedCount}건 PPT 생성 중...` : '전체 목록 PPT 생성 중...');
+
+                // pptxgenjs 라이브러리 정상 인스턴스화
+                const PPTX = window.PptxGenJS || PptxGenJS;
+                let pptx = new PPTX();
                 pptx.defineLayout({ name: 'STANDARD_4_3', width: 10.0, height: 7.5 });
                 pptx.layout = 'STANDARD_4_3';
 
-                list.forEach(item => {
+                exportList.forEach(item => {
                     let slide = pptx.addSlide();
                     let fDate = item.guideDate ? `(${item.guideDate.substring(2).replace(/-/g,'.')})` : '';
 
@@ -1008,13 +1017,10 @@
                 pptx.writeFile({ fileName: `안전점검보고서_${currentCategory}_${new Date().toISOString().substring(0,10)}.pptx` });
             } catch (err) {
                 console.error('PPT 생성 오류:', err);
-                alert('PPT 내보내기 도중 오류가 발생했습니다.');
+                alert('PPT 내보내기 도중 오류가 발생했습니다: ' + err.message);
             }
         }
 
-        /* ----------------------------------------------------
-         * PPTX 역파싱(불러오기) 및 DB 복원 로직 (개선 보완)
-         * ---------------------------------------------------- */
         async function handlePPTImport(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -1044,7 +1050,6 @@
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(slideXmlStr, 'text/xml');
 
-                    // 1. 단락(<a:p>) 단위로 문장을 정확하게 묶어서 텍스트 파싱
                     const shapes = xmlDoc.getElementsByTagName('p:sp');
                     const extractedTexts = [];
 
@@ -1064,7 +1069,6 @@
                         }
                     }
 
-                    // 기본 단락 노드 파싱 (테이블/셀 내부 텍스트 보완)
                     const cellNodes = xmlDoc.getElementsByTagName('a:tc');
                     for (let c = 0; c < cellNodes.length; c++) {
                         const tNodes = cellNodes[c].getElementsByTagName('a:t');
@@ -1080,7 +1084,6 @@
                     let beforeImgs = [];
                     let afterImgs = [];
 
-                    // 2. 이미지 분류 (X 좌표 기준으로 좌측: 개선전, 우측: 개선후 자동 분류)
                     if (zip.file(relsFileName)) {
                         const relsXmlStr = await zip.file(relsFileName).async('string');
                         const relsDoc = parser.parseFromString(relsXmlStr, 'text/xml');
@@ -1107,7 +1110,6 @@
                                     const mime = (ext === 'png') ? 'image/png' : 'image/jpeg';
                                     const base64Str = `data:${mime};base64,${imgData}`;
 
-                                    // X 좌표 위치 계산 (EMU 단위)
                                     let xPos = 0;
                                     let ancestor = blips[b].parentNode;
                                     while (ancestor && ancestor.tagName !== 'p:pic' && ancestor.tagName !== 'p:graphicFrame') {
@@ -1118,7 +1120,6 @@
                                         if (off) xPos = parseInt(off.getAttribute('x') || '0');
                                     }
 
-                                    // 중앙 위치(약 4,500,000 EMU) 기준 좌/우 구별
                                     if (xPos > 0 && xPos < 4500000) {
                                         beforeImgs.push(base64Str);
                                     } else if (xPos >= 4500000) {
@@ -1153,7 +1154,6 @@
                     const dept = getValueAfterLabel('조치부서') || getValueAfterLabel('조치 부서');
                     const type = getValueAfterLabel('상태/행동') || '불안전 상태';
 
-                    // 3. 날짜 추출 로직
                     const extractDate = (label) => {
                         const val = getValueAfterLabel(label);
                         if (!val) return '';
@@ -1176,7 +1176,6 @@
                     };
 
                     const guideDate = extractDate('지도일자') || extractDate('지도 일자') || new Date().toISOString().substring(0, 10);
-                    // 수정: PPT 불러오기 시 완결일자/계획일자 자동 할당 없이 PPT 상에 명시된 텍스트만 파싱
                     const planDate = extractDate('계획일자') || extractDate('계획 일자') || '';
                     const completeDate = extractDate('완료일자') || extractDate('완료 일자') || '';
 
@@ -1216,7 +1215,7 @@
 
             } catch (err) {
                 console.error('PPT 분석 에러:', err);
-                alert('PPT 파일을 읽는 중 오류가 발생했습니다. 해당 웹사이트에서 출력된 PPT 파일인지 확인해주세요.');
+                alert('PPT 파일을 읽는 중 오류가 발생했습니다.');
             } finally {
                 e.target.value = '';
             }
