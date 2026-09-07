@@ -638,6 +638,11 @@
             refreshDataView();
         }
 
+        // 개선후 사진 존재 여부 검사 헬퍼 함수
+        function hasAfterImage(row) {
+            return !!(row && row.afterImg && String(row.afterImg).trim() !== '');
+        }
+
         function refreshDataView() {
             const checkAll = document.getElementById('check-all');
             if (checkAll) checkAll.checked = false;
@@ -646,7 +651,9 @@
             renderMatrixStats(pList);
             let fList = pList;
             const sF = document.getElementById('col-filter-status').value, tF = document.getElementById('col-filter-type').value, tgF = document.getElementById('col-filter-target').value;
-            if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? (i.afterImg || i.completeDate) : !(i.afterImg || i.completeDate));
+            
+            // 수정: 날짜 유무가 아닌 실제 개선후 사진(afterImg)이 있을 때만 개선후로 필터링
+            if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? hasAfterImage(i) : !hasAfterImage(i));
             if(tF !== 'all') fList = fList.filter(i => i.type === tF);
             if(tgF !== 'all') fList = fList.filter(i => i.target === tgF);
 
@@ -667,7 +674,10 @@
             let html = '', sumI = 0, sumD = 0, sumU = 0;
             const counts = TARGET_TEAMS.map(team => {
                 const items = pData.filter(d => d.target === team);
-                const iC = items.length, dC = items.filter(d => d.afterImg || d.completeDate).length, uC = iC - dC;
+                const iC = items.length;
+                // 수정: 개선후 사진이 존재하는 경우만 개선 건수로 집계
+                const dC = items.filter(d => hasAfterImage(d)).length;
+                const uC = iC - dC;
                 sumI += iC; sumD += dC; sumU += uC;
                 return { team, iC, dC, uC, rate: iC > 0 ? Math.round((dC/iC)*100)+'%' : '-' };
             });
@@ -689,7 +699,8 @@
             const tbody = document.getElementById('data-list-body'); tbody.innerHTML = '';
             list.forEach((row, idx) => {
                 const tr = document.createElement('tr'); if(editingId === row.id) tr.className = 'selected-row';
-                const isAfter = (row.afterImg || row.completeDate);
+                // 수정: 개선후 사진이 첨부된 건만 '개선후' 배지로 표시
+                const isAfter = hasAfterImage(row);
                 tr.onclick = () => loadRecordForEdit(row.id);
                 tr.innerHTML = `
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="${row.id}" onchange="checkRowSelectState()" style="cursor:pointer;"></td>
@@ -899,7 +910,8 @@
             
             const excelData = list.map((item, idx) => ({
                 '번호': idx + 1,
-                '구분': (item.afterImg || item.completeDate) ? '개선후' : '개선전',
+                // 수정: Excel 내보내기 시에도 사진 유무 기준 개선후 판정
+                '구분': hasAfterImage(item) ? '개선후' : '개선전',
                 '점검분류': item.category,
                 '공장식별': item.seqCode,
                 '상태/행동': item.type,
@@ -1032,7 +1044,7 @@
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(slideXmlStr, 'text/xml');
 
-                    // 1. 단락(<a:p>) 단위로 문장을 정확하게 묶어서 텍스트 파싱 (줄바꿈/부분 폰트 스타일로 인한 문장 잘림 방지)
+                    // 1. 단락(<a:p>) 단위로 문장을 정확하게 묶어서 텍스트 파싱
                     const shapes = xmlDoc.getElementsByTagName('p:sp');
                     const extractedTexts = [];
 
@@ -1048,7 +1060,7 @@
                             if (lineText.trim()) shapeLines.push(lineText.trim());
                         }
                         if (shapeLines.length > 0) {
-                            extractedTexts.push(shapeLines.join(' ')); // 줄바꿈된 문장을 합침
+                            extractedTexts.push(shapeLines.join(' '));
                         }
                     }
 
@@ -1112,7 +1124,6 @@
                                     } else if (xPos >= 4500000) {
                                         afterImgs.push(base64Str);
                                     } else {
-                                        // 좌표 판별 실패시 기본 순서
                                         if (beforeImgs.length === 0) beforeImgs.push(base64Str);
                                         else afterImgs.push(base64Str);
                                     }
@@ -1142,7 +1153,7 @@
                     const dept = getValueAfterLabel('조치부서') || getValueAfterLabel('조치 부서');
                     const type = getValueAfterLabel('상태/행동') || '불안전 상태';
 
-                    // 3. 날짜 추출 로직 보완 (YYYY-MM-DD, YYYYMMDD, MM.DD 포맷 완벽 지원)
+                    // 3. 날짜 추출 로직
                     const extractDate = (label) => {
                         const val = getValueAfterLabel(label);
                         if (!val) return '';
@@ -1165,8 +1176,9 @@
                     };
 
                     const guideDate = extractDate('지도일자') || extractDate('지도 일자') || new Date().toISOString().substring(0, 10);
-                    const planDate = extractDate('계획일자') || extractDate('계획 일자');
-                    const completeDate = extractDate('완료일자') || extractDate('완료 일자');
+                    // 수정: PPT 불러오기 시 완결일자/계획일자 자동 할당 없이 PPT 상에 명시된 텍스트만 파싱
+                    const planDate = extractDate('계획일자') || extractDate('계획 일자') || '';
+                    const completeDate = extractDate('완료일자') || extractDate('완료 일자') || '';
 
                     const beforeImg = beforeImgs[0] || '';
                     const afterImg = afterImgs[0] || '';
