@@ -600,14 +600,15 @@
             document.getElementById('category-name-display').innerText = currentCategory;
             updateHeaderDate();
             if(!editingId) {
-                const today = new Date().toISOString().substring(0, 10);
+                const guideDateVal = document.getElementById('input-guide-date').value || new Date().toISOString().substring(0, 10);
                 const db = window.dbData || [];
-                const count = db.filter(d => d.category === currentCategory && d.regDate === today).length;
+                const count = db.filter(d => d.category === currentCategory && d.guideDate === guideDateVal).length;
                 document.getElementById('factory-seq-code').innerText = `예산 공장-${count + 1}`;
             }
             refreshDataView();
         }
 
+        /* 날짜 필터링 기준: 지도일자(guideDate) 사용 */
         function getPeriodFilteredData() {
             const type = document.getElementById('filter-type').value;
             const db = window.dbData || [];
@@ -615,9 +616,20 @@
             if(type !== 'all') {
                 list = list.filter(item => {
                     if(!item.guideDate) return false;
-                    const t = new Date(item.guideDate);
-                    if(type === 'daily') return t.toDateString() === currentFilterDate.toDateString();
-                    if(type === 'weekly') { const s = new Date(currentFilterDate); s.setDate(s.getDate()-3); const e = new Date(currentFilterDate); e.setDate(e.getDate()+3); return t >= s && t <= e; }
+                    const parts = item.guideDate.split('-');
+                    if(parts.length !== 3) return false;
+                    const t = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                    
+                    if(type === 'daily') {
+                        return t.getFullYear() === currentFilterDate.getFullYear() &&
+                               t.getMonth() === currentFilterDate.getMonth() &&
+                               t.getDate() === currentFilterDate.getDate();
+                    }
+                    if(type === 'weekly') { 
+                        const s = new Date(currentFilterDate); s.setDate(s.getDate()-3); s.setHours(0,0,0,0);
+                        const e = new Date(currentFilterDate); e.setDate(e.getDate()+3); e.setHours(23,59,59,999);
+                        return t >= s && t <= e; 
+                    }
                     if(type === 'monthly') return t.getFullYear() === currentFilterDate.getFullYear() && t.getMonth() === currentFilterDate.getMonth();
                     if(type === 'yearly') return t.getFullYear() === currentFilterDate.getFullYear();
                     return true;
@@ -650,8 +662,8 @@
             if(tgF !== 'all') fList = fList.filter(i => i.target === tgF);
 
             fList.sort((a,b) => {
-                const dateA = new Date(a.guideDate || 0);
-                const dateB = new Date(b.guideDate || 0);
+                const dateA = a.guideDate ? new Date(a.guideDate) : new Date(0);
+                const dateB = b.guideDate ? new Date(b.guideDate) : new Date(0);
                 return isDateAscending ? dateA - dateB : dateB - dateA;
             });
 
@@ -894,16 +906,33 @@
             }
         }
 
-        // 체크박스 선택 대상 항목 가져오는 공통 헬퍼 함수
+        /* 내보내기 대상 데이터 추출 헬퍼 함수 (체크박스 선택 시 선택 항목만, 미선택 시 기간 필터 및 드롭다운 조건 전체 반영) */
         function getTargetExportData() {
             const periodList = getPeriodFilteredData();
-            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             
+            // 드롭다운 2차 필터링 조건 동일 적용
+            const sF = document.getElementById('col-filter-status').value, 
+                  tF = document.getElementById('col-filter-type').value, 
+                  tgF = document.getElementById('col-filter-target').value;
+            
+            let filteredList = periodList;
+            if(sF !== 'all') filteredList = filteredList.filter(i => sF === 'after' ? hasAfterImage(i) : !hasAfterImage(i));
+            if(tF !== 'all') filteredList = filteredList.filter(i => i.type === tF);
+            if(tgF !== 'all') filteredList = filteredList.filter(i => i.target === tgF);
+
+            // 지도일자 정렬 적용
+            filteredList.sort((a,b) => {
+                const dateA = a.guideDate ? new Date(a.guideDate) : new Date(0);
+                const dateB = b.guideDate ? new Date(b.guideDate) : new Date(0);
+                return isDateAscending ? dateA - dateB : dateB - dateA;
+            });
+
+            const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             if (checkedBoxes.length > 0) {
                 const checkedIds = Array.from(checkedBoxes).map(cb => cb.value);
-                return periodList.filter(item => checkedIds.includes(item.id));
+                return filteredList.filter(item => checkedIds.includes(item.id));
             }
-            return periodList;
+            return filteredList;
         }
 
         function exportToExcel() {
@@ -943,7 +972,6 @@
                 const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
                 showToast(checkedCount > 0 ? `선택한 ${checkedCount}건 PPT 생성 중...` : '전체 목록 PPT 생성 중...');
 
-                // pptxgenjs 라이브러리 정상 인스턴스화
                 const PPTX = window.PptxGenJS || PptxGenJS;
                 let pptx = new PPTX();
                 pptx.defineLayout({ name: 'STANDARD_4_3', width: 10.0, height: 7.5 });
