@@ -1001,7 +1001,7 @@
         }
 
         /* ----------------------------------------------------
-         * PPTX 역파싱(불러오기) 및 DB 복원 로직
+         * PPTX 역파싱(불러오기) 및 DB 복원 로직 (개선 보완)
          * ---------------------------------------------------- */
         async function handlePPTImport(e) {
             const file = e.target.files[0];
@@ -1032,17 +1032,43 @@
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(slideXmlStr, 'text/xml');
 
-                    const textNodes = xmlDoc.getElementsByTagName('a:t');
-                    const texts = [];
-                    for (let t = 0; t < textNodes.length; t++) {
-                        const val = textNodes[t].textContent.trim();
-                        if (val) texts.push(val);
+                    // 1. 단락(<a:p>) 단위로 문장을 정확하게 묶어서 텍스트 파싱 (줄바꿈/부분 폰트 스타일로 인한 문장 잘림 방지)
+                    const shapes = xmlDoc.getElementsByTagName('p:sp');
+                    const extractedTexts = [];
+
+                    for (let s = 0; s < shapes.length; s++) {
+                        const pNodes = shapes[s].getElementsByTagName('a:p');
+                        let shapeLines = [];
+                        for (let p = 0; p < pNodes.length; p++) {
+                            const tNodes = pNodes[p].getElementsByTagName('a:t');
+                            let lineText = '';
+                            for (let t = 0; t < tNodes.length; t++) {
+                                lineText += tNodes[t].textContent || '';
+                            }
+                            if (lineText.trim()) shapeLines.push(lineText.trim());
+                        }
+                        if (shapeLines.length > 0) {
+                            extractedTexts.push(shapeLines.join(' ')); // 줄바꿈된 문장을 합침
+                        }
+                    }
+
+                    // 기본 단락 노드 파싱 (테이블/셀 내부 텍스트 보완)
+                    const cellNodes = xmlDoc.getElementsByTagName('a:tc');
+                    for (let c = 0; c < cellNodes.length; c++) {
+                        const tNodes = cellNodes[c].getElementsByTagName('a:t');
+                        let cellText = '';
+                        for (let t = 0; t < tNodes.length; t++) {
+                            cellText += tNodes[t].textContent || '';
+                        }
+                        if (cellText.trim()) extractedTexts.push(cellText.trim());
                     }
 
                     const slideNum = slideFileName.match(/\d+/)[0];
                     const relsFileName = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
-                    let imageBase64List = [];
+                    let beforeImgs = [];
+                    let afterImgs = [];
 
+                    // 2. 이미지 분류 (X 좌표 기준으로 좌측: 개선전, 우측: 개선후 자동 분류)
                     if (zip.file(relsFileName)) {
                         const relsXmlStr = await zip.file(relsFileName).async('string');
                         const relsDoc = parser.parseFromString(relsXmlStr, 'text/xml');
@@ -1067,37 +1093,83 @@
                                     const imgData = await imgFile.async('base64');
                                     const ext = imgPath.split('.').pop().toLowerCase();
                                     const mime = (ext === 'png') ? 'image/png' : 'image/jpeg';
-                                    imageBase64List.push(`data:${mime};base64,${imgData}`);
+                                    const base64Str = `data:${mime};base64,${imgData}`;
+
+                                    // X 좌표 위치 계산 (EMU 단위)
+                                    let xPos = 0;
+                                    let ancestor = blips[b].parentNode;
+                                    while (ancestor && ancestor.tagName !== 'p:pic' && ancestor.tagName !== 'p:graphicFrame') {
+                                        ancestor = ancestor.parentNode;
+                                    }
+                                    if (ancestor) {
+                                        const off = ancestor.getElementsByTagName('a:off')[0];
+                                        if (off) xPos = parseInt(off.getAttribute('x') || '0');
+                                    }
+
+                                    // 중앙 위치(약 4,500,000 EMU) 기준 좌/우 구별
+                                    if (xPos > 0 && xPos < 4500000) {
+                                        beforeImgs.push(base64Str);
+                                    } else if (xPos >= 4500000) {
+                                        afterImgs.push(base64Str);
+                                    } else {
+                                        // 좌표 판별 실패시 기본 순서
+                                        if (beforeImgs.length === 0) beforeImgs.push(base64Str);
+                                        else afterImgs.push(base64Str);
+                                    }
                                 }
                             }
                         }
                     }
 
                     const getValueAfterLabel = (label) => {
-                        const idx = texts.findIndex(t => t.replace(/\s+/g, '') === label.replace(/\s+/g, ''));
-                        return (idx !== -1 && idx + 1 < texts.length) ? texts[idx + 1] : '';
+                        const targetLabel = label.replace(/\s+/g, '');
+                        for (let t = 0; t < extractedTexts.length; t++) {
+                            const cleanText = extractedTexts[t].replace(/\s+/g, '');
+                            if (cleanText === targetLabel && t + 1 < extractedTexts.length) {
+                                return extractedTexts[t + 1];
+                            } else if (cleanText.startsWith(targetLabel) && cleanText.length > targetLabel.length) {
+                                return extractedTexts[t].replace(new RegExp(`^${label}\\s*`), '').trim();
+                            }
+                        }
+                        return '';
                     };
 
-                    const seqCode = (texts.find(t => t.includes('예산 공장')) || `예산 공장-${i+1}`);
+                    const seqCode = (extractedTexts.find(t => t.includes('예산 공장')) || `예산 공장-${i+1}`);
                     const item = getValueAfterLabel('안건') || getValueAfterLabel('안 건');
                     const solution = getValueAfterLabel('개선안');
                     const zone = getValueAfterLabel('점검구역') || getValueAfterLabel('점검 구역');
                     const target = getValueAfterLabel('대상') || getValueAfterLabel('대 상') || '생산팀';
                     const dept = getValueAfterLabel('조치부서') || getValueAfterLabel('조치 부서');
                     const type = getValueAfterLabel('상태/행동') || '불안전 상태';
-                    
+
+                    // 3. 날짜 추출 로직 보완 (YYYY-MM-DD, YYYYMMDD, MM.DD 포맷 완벽 지원)
                     const extractDate = (label) => {
                         const val = getValueAfterLabel(label);
-                        const match = val.match(/\d{4}-\d{2}-\d{2}/);
-                        return match ? match[0] : (val.length === 8 && !isNaN(val) ? `${val.substring(0,4)}-${val.substring(4,6)}-${val.substring(6,8)}` : '');
+                        if (!val) return '';
+
+                        const matchFull = val.match(/\d{4}-\d{2}-\d{2}/);
+                        if (matchFull) return matchFull[0];
+
+                        const matchShort = val.match(/(\d{1,2})[\.\-](\d{1,2})/);
+                        if (matchShort) {
+                            const currentYear = new Date().getFullYear();
+                            const mm = matchShort[1].padStart(2, '0');
+                            const dd = matchShort[2].padStart(2, '0');
+                            return `${currentYear}-${mm}-${dd}`;
+                        }
+
+                        if (val.length === 8 && !isNaN(val)) {
+                            return `${val.substring(0,4)}-${val.substring(4,6)}-${val.substring(6,8)}`;
+                        }
+                        return '';
                     };
 
                     const guideDate = extractDate('지도일자') || extractDate('지도 일자') || new Date().toISOString().substring(0, 10);
                     const planDate = extractDate('계획일자') || extractDate('계획 일자');
                     const completeDate = extractDate('완료일자') || extractDate('완료 일자');
 
-                    const beforeImg = imageBase64List[0] || '';
-                    const afterImg = imageBase64List[1] || '';
+                    const beforeImg = beforeImgs[0] || '';
+                    const afterImg = afterImgs[0] || '';
 
                     if (item) {
                         importedRecords.push({
