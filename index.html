@@ -126,6 +126,9 @@
         .data-table tbody tr:hover { background-color: #e9ecef; }
         .data-table tbody tr.selected-row { background-color: #d6e4ff; font-weight: bold; }
 
+        .sortable-header { cursor: pointer; user-select: none; }
+        .sortable-header:hover { background-color: #e2e6ea; }
+
         .table-filter-select { width: 100%; font-size: 11px; padding: 2px 4px; border: 1px solid #aaa; border-radius: 3px; background: white; outline: none; font-weight: bold; }
         .badge-status { padding: 2px 6px; border-radius: 3px; font-size: 10px; color: white; font-weight: bold; }
         .bg-before { background-color: #dc3545; }
@@ -332,7 +335,10 @@
                                 <th><select id="col-filter-status" class="table-filter-select" onchange="refreshDataView()"><option value="all">구분(전체)</option><option value="before">개선전</option><option value="after">개선후</option></select></th>
                                 <th><select id="col-filter-type" class="table-filter-select" onchange="refreshDataView()"><option value="all">상태(전체)</option><option value="불안전 상태">불안전 상태</option><option value="불안전 행동">불안전 행동</option></select></th>
                                 <th><select id="col-filter-target" class="table-filter-select" onchange="refreshDataView()"><option value="all">대상(전체)</option><option value="생산팀">생산팀</option><option value="안전환경노무팀">안전환경노무팀</option><option value="생관물류팀">생관물류팀</option><option value="품질팀">품질팀</option><option value="HR다인">HR다인</option></select></th>
-                                <th>점검구역</th><th>안건</th><th>지도일자 ▲</th><th>삭제</th>
+                                <th>점검구역</th>
+                                <th>안건</th>
+                                <th class="sortable-header" onclick="toggleDateSort()">지도일자 <span id="sort-icon">▲</span></th>
+                                <th>삭제</th>
                             </tr>
                         </thead>
                         <tbody id="data-list-body"></tbody>
@@ -347,11 +353,11 @@
     <!-- Firebase SDK 모듈 스크립트 (조건 2) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // 사용자 Firebase 실제 프로젝트 정보 적용 (조건 2)
-       const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
             authDomain: "hwashin-safety.firebaseapp.com",
             projectId: "hwashin-safety",
@@ -359,7 +365,7 @@
             messagingSenderId: "925751971876",
             appId: "1:925751971876:web:57cb605106c4973e4688b1",
             measurementId: "G-VBZF0P12B5"
-};
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -370,13 +376,15 @@
         window.firebaseAuth = auth;
         window.firebaseDb = db;
 
-        // 로그인 이벤트
+        // 로그인 이벤트 (창 닫을 때 로그아웃되도록 SESSION 지속성 설정)
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const pw = document.getElementById('loginPassword').value;
             try {
-                await signInWithEmailAndPassword(auth, email, pw);
+                // 세션 지속성 적용 (브라우저 종료 시 로그아웃)
+                await setPersistence(auth, browserSessionPersistence);
+                await signInWithEmailAndPassword(auth, email.trim(), pw);
                 document.getElementById('loginError').style.display = 'none';
             } catch (err) {
                 document.getElementById('loginError').style.display = 'block';
@@ -458,6 +466,7 @@
         let editingId = null;
         let images = { beforeCell: '', afterCell: '' };
         let currentFilterDate = new Date();
+        let isDateAscending = true; // 지도일자 오름차순/내림차순 토글 변수
 
         window.onload = function() {
             const now = new Date();
@@ -540,6 +549,13 @@
             return list;
         }
 
+        // 지도일자 오름차순/내림차순 정렬 토글 함수
+        function toggleDateSort() {
+            isDateAscending = !isDateAscending;
+            document.getElementById('sort-icon').innerText = isDateAscending ? '▲' : '▼';
+            refreshDataView();
+        }
+
         function refreshDataView() {
             const pList = getPeriodFilteredData();
             renderMatrixStats(pList);
@@ -548,7 +564,14 @@
             if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? (i.afterImg || i.completeDate) : !(i.afterImg || i.completeDate));
             if(tF !== 'all') fList = fList.filter(i => i.type === tF);
             if(tgF !== 'all') fList = fList.filter(i => i.target === tgF);
-            fList.sort((a,b) => new Date(a.guideDate || 0) - new Date(b.guideDate || 0));
+
+            // 지도일자 오름차순/내림차순 동적 정렬 적용
+            fList.sort((a,b) => {
+                const dateA = new Date(a.guideDate || 0);
+                const dateB = new Date(b.guideDate || 0);
+                return isDateAscending ? dateA - dateB : dateB - dateA;
+            });
+
             renderList(fList);
         }
 
