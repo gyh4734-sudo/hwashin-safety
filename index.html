@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HWASHIN 예산공장 안전점검 통합 관리 System</title>
-    <!-- PPTX 및 XLSX 외부 라이브러리 -->
+    <!-- PPTX, XLSX 및 JSZip 외부 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
@@ -112,6 +113,7 @@
         .btn-success { background: #28a745; color: white; }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
         .btn:hover { opacity: 0.9; }
 
         .stats-matrix-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; margin-top: 5px; }
@@ -316,11 +318,14 @@
                 </table>
             </div>
 
-            <!-- 조회 점검목록 카드 (선택 삭제 버튼 및 체크박스 추가 반영) -->
+            <!-- 조회 점검목록 카드 -->
             <div class="card">
                 <div class="card-title">
                     <div><i class="fa-solid fa-list"></i> <span>조회 점검목록</span></div>
                     <div style="display:flex; gap: 5px;">
+                        <!-- PPT 파일 업로드 전용 hidden input 및 버튼 -->
+                        <input type="file" id="ppt-import-input" accept=".pptx" style="display:none;" onchange="handlePPTImport(event)">
+                        <button class="btn btn-warning" onclick="document.getElementById('ppt-import-input').click()"><i class="fa-solid fa-file-import"></i> PPT 불러오기</button>
                         <button class="btn btn-danger" onclick="deleteSelectedRecords()"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
                         <button class="btn btn-success" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
                         <button class="btn btn-secondary" onclick="exportToPPT()"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
@@ -443,6 +448,20 @@
             }
         };
 
+        // PPT 등 일괄 저장을 위한 전용 함수
+        window.batchSaveToFirestore = async function(recordsArray) {
+            try {
+                for (let recordData of recordsArray) {
+                    recordData.createdAt = serverTimestamp();
+                    await addDoc(collection(db, "checklists"), recordData);
+                }
+                window.showToast(`${recordsArray.length}건의 실적이 성공적으로 복원/저장되었습니다.`);
+                window.resetForm();
+            } catch (err) {
+                alert('일괄 저장 중 오류가 발생했습니다: ' + err.message);
+            }
+        };
+
         window.deleteRecordFromFirestore = async function(docId) {
             const user = auth.currentUser;
             if(!user) return;
@@ -461,7 +480,6 @@
             }
         };
 
-        // 선택된 여러 개의 데이터 삭제 처리
         window.deleteMultipleRecordsFromFirestore = async function(docIds) {
             const user = auth.currentUser;
             if(!user) return;
@@ -629,7 +647,6 @@
             document.getElementById('matrix-body').innerHTML = html;
         }
 
-        /* 테이블 랜더링 시 각 행마다 체크박스 추가 */
         function renderList(list) {
             const tbody = document.getElementById('data-list-body'); tbody.innerHTML = '';
             list.forEach((row, idx) => {
@@ -639,7 +656,7 @@
                 tr.innerHTML = `
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="${row.id}" onchange="checkRowSelectState()" style="cursor:pointer;"></td>
                     <td>${idx+1}</td>
-                    <td><span class="badge-status ${isAfter ? 'bg-after' : 'bg-before'}">${isAfter ? '개선후' : '개선전'}</span></td>
+                    <td><span class="badge-status ${isAfter ? 'bg-after' : 'bg-before'}">${isAfter ? '개선후' : '개선후'}</span></td>
                     <td>${row.type}</td>
                     <td>${row.target}</td>
                     <td>${row.zone || '-'}</td>
@@ -651,13 +668,11 @@
             });
         }
 
-        /* 헤더 전체 선택 체크박스 동작 */
         function toggleSelectAll(master) {
             const checkboxes = document.querySelectorAll('.row-checkbox');
             checkboxes.forEach(cb => cb.checked = master.checked);
         }
 
-        /* 개별 체크박스 선택에 따라 전체 선택 체크박스 상태 업데이트 */
         function checkRowSelectState() {
             const checkboxes = document.querySelectorAll('.row-checkbox');
             const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
@@ -667,7 +682,6 @@
             }
         }
 
-        /* '선택 삭제' 버튼 클릭 시 다중 삭제 실행 */
         function deleteSelectedRecords() {
             const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
             if (checkedBoxes.length === 0) {
@@ -943,6 +957,154 @@
             } catch (err) {
                 console.error('PPT 생성 오류:', err);
                 alert('PPT 내보내기 도중 오류가 발생했습니다.');
+            }
+        }
+
+        /* ----------------------------------------------------
+         * PPTX 역파싱(불러오기) 및 DB 복원 로직
+         * ---------------------------------------------------- */
+        async function handlePPTImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            showToast('PPT 파일 분석 중...');
+
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const slideFiles = Object.keys(zip.files).filter(fileName => fileName.startsWith('ppt/slides/slide') && fileName.endsWith('.xml'));
+
+                if (slideFiles.length === 0) {
+                    alert('유효한 PPT 슬라이드가 없습니다.');
+                    return;
+                }
+
+                // 슬라이드 파일 정렬 (slide1.xml, slide2.xml ... 순서)
+                slideFiles.sort((a, b) => {
+                    const numA = parseInt(a.match(/\d+/)[0]);
+                    const numB = parseInt(b.match(/\d+/)[0]);
+                    return numA - numB;
+                });
+
+                const importedRecords = [];
+
+                for (let i = 0; i < slideFiles.length; i++) {
+                    const slideFileName = slideFiles[i];
+                    const slideXmlStr = await zip.file(slideFileName).async('string');
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(slideXmlStr, 'text/xml');
+
+                    // 1. 텍스트 추출 (a:t 태그들 추출)
+                    const textNodes = xmlDoc.getElementsByTagName('a:t');
+                    const texts = [];
+                    for (let t = 0; t < textNodes.length; t++) {
+                        const val = textNodes[t].textContent.trim();
+                        if (val) texts.push(val);
+                    }
+
+                    // 2. 이미지 매핑 및 Base64 추출 (rels 파싱)
+                    const slideNum = slideFileName.match(/\d+/)[0];
+                    const relsFileName = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
+                    let imageBase64List = [];
+
+                    if (zip.file(relsFileName)) {
+                        const relsXmlStr = await zip.file(relsFileName).async('string');
+                        const relsDoc = parser.parseFromString(relsXmlStr, 'text/xml');
+                        const relationships = relsDoc.getElementsByTagName('Relationship');
+                        
+                        const imgRelMap = {};
+                        for (let r = 0; r < relationships.length; r++) {
+                            const id = relationships[r].getAttribute('Id');
+                            const target = relationships[r].getAttribute('Target');
+                            if (target && target.includes('media/')) {
+                                imgRelMap[id] = target.replace('../media/', 'ppt/media/');
+                            }
+                        }
+
+                        // 슬라이드 내blip 인덱스 기반 매핑
+                        const blips = xmlDoc.getElementsByTagName('a:blip');
+                        for (let b = 0; b < blips.length; b++) {
+                            const embedId = blips[b].getAttribute('r:embed');
+                            if (embedId && imgRelMap[embedId]) {
+                                const imgPath = imgRelMap[embedId];
+                                const imgFile = zip.file(imgPath);
+                                if (imgFile) {
+                                    const imgData = await imgFile.async('base64');
+                                    const ext = imgPath.split('.').pop().toLowerCase();
+                                    const mime = (ext === 'png') ? 'image/png' : 'image/jpeg';
+                                    imageBase64List.push(`data:${mime};base64,${imgData}`);
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. 추출 텍스트에서 항목 매핑
+                    const fullText = texts.join(' ');
+                    
+                    // 텍스트 인덱스 기반 파싱 도우미 함수
+                    const getValueAfterLabel = (label) => {
+                        const idx = texts.findIndex(t => t.replace(/\s+/g, '') === label.replace(/\s+/g, ''));
+                        return (idx !== -1 && idx + 1 < texts.length) ? texts[idx + 1] : '';
+                    };
+
+                    const seqCode = (texts.find(t => t.includes('예산 공장')) || `예산 공장-${i+1}`);
+                    const item = getValueAfterLabel('안건') || getValueAfterLabel('안 건');
+                    const solution = getValueAfterLabel('개선안');
+                    const zone = getValueAfterLabel('점검구역') || getValueAfterLabel('점검 구역');
+                    const target = getValueAfterLabel('대상') || getValueAfterLabel('대 상') || '생산팀';
+                    const dept = getValueAfterLabel('조치부서') || getValueAfterLabel('조치 부서');
+                    const type = getValueAfterLabel('상태/행동') || '불안전 상태';
+                    
+                    // 날짜 추출 (YYYY-MM-DD 포맷 정규식)
+                    const extractDate = (label) => {
+                        const val = getValueAfterLabel(label);
+                        const match = val.match(/\d{4}-\d{2}-\d{2}/);
+                        return match ? match[0] : (val.length === 8 && !isNaN(val) ? `${val.substring(0,4)}-${val.substring(4,6)}-${val.substring(6,8)}` : '');
+                    };
+
+                    const guideDate = extractDate('지도일자') || extractDate('지도 일자') || new Date().toISOString().substring(0, 10);
+                    const planDate = extractDate('계획일자') || extractDate('계획 일자');
+                    const completeDate = extractDate('완료일자') || extractDate('완료 일자');
+
+                    // 이미지 할당 (첫 번째: 개선전, 두 번째: 개선후)
+                    const beforeImg = imageBase64List[0] || '';
+                    const afterImg = imageBase64List[1] || '';
+
+                    if (item) {
+                        importedRecords.push({
+                            category: currentCategory,
+                            seqCode: seqCode,
+                            item: item,
+                            solution: solution,
+                            zone: zone,
+                            target: TARGET_TEAMS.includes(target) ? target : '생산팀',
+                            dept: dept,
+                            type: type.includes('행동') ? '불안전 행동' : '불안전 상태',
+                            guideDate: guideDate,
+                            planDate: planDate,
+                            completeDate: completeDate,
+                            beforeImg: beforeImg,
+                            afterImg: afterImg,
+                            regDate: guideDate || new Date().toISOString().substring(0, 10)
+                        });
+                    }
+                }
+
+                if (importedRecords.length === 0) {
+                    alert('PPT에서 올바른 안전점검 양식을 찾지 못했습니다.');
+                    return;
+                }
+
+                if (confirm(`총 ${importedRecords.length}건의 점검 항목을 불러왔습니다. 현재 카테고리 [${currentCategory}]로 DB에 저장하시겠습니까?`)) {
+                    if (window.batchSaveToFirestore) {
+                        await window.batchSaveToFirestore(importedRecords);
+                    }
+                }
+
+            } catch (err) {
+                console.error('PPT 분석 에러:', err);
+                alert('PPT 파일을 읽는 중 오류가 발생했습니다. 해당 웹사이트에서 출력된 PPT 파일인지 확인해주세요.');
+            } finally {
+                e.target.value = ''; // 파일 체인지 이벤트 재동작을 위해 리셋
             }
         }
 
