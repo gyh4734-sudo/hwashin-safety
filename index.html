@@ -3,159 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>안전 점검 관리 시스템</title>
-    <!-- Tailwind CSS & FontAwesome -->
+    <title>안전 브레인 스토밍</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 12px; }
+        .table-custom th, .table-custom td { border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; }
+        .table-custom th { background-color: #f1f5f9; font-weight: bold; }
+    </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased font-sans">
+<body class="bg-slate-200 p-2 text-slate-800">
 
-    <!-- 로그인 모달 레이어 (로그인 전 화면 차단) -->
+    <!-- 로그인 모달 -->
     <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md border border-slate-200">
-            <div class="text-center mb-6">
-                <i class="fa-solid fa-shield-halved text-4xl text-blue-600 mb-2"></i>
-                <h2 class="text-xl font-bold text-slate-800">안전 점검 시스템 로그인</h2>
-                <p class="text-xs text-slate-500 mt-1">시스템 이용을 위해 계정 정보를 입력하세요.</p>
+        <div class="bg-white rounded shadow-lg p-6 w-full max-w-sm border border-slate-300">
+            <div class="text-center mb-4">
+                <i class="fa-solid fa-shield-halved text-3xl text-blue-800 mb-2"></i>
+                <h2 class="text-base font-bold text-slate-800">안전 점검 시스템 로그인</h2>
             </div>
-            <form id="loginForm" class="space-y-4">
+            <form id="loginForm" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">이메일</label>
-                    <input type="email" id="loginEmail" required placeholder="example@hwashin.co.kr" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <label class="block text-xs font-semibold mb-1">이메일</label>
+                    <input type="email" id="loginEmail" required class="w-full text-xs p-2 border border-slate-300 rounded focus:outline-none focus:border-blue-600">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">비밀번호</label>
-                    <input type="password" id="loginPassword" required placeholder="비밀번호 입력" class="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <label class="block text-xs font-semibold mb-1">비밀번호</label>
+                    <input type="password" id="loginPassword" required class="w-full text-xs p-2 border border-slate-300 rounded focus:outline-none focus:border-blue-600">
                 </div>
                 <div id="loginError" class="text-xs text-red-500 font-semibold hidden text-center"></div>
-                <button type="submit" id="btnLogin" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg text-sm transition shadow">
-                    로그인
-                </button>
+                <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 rounded text-xs">로그인</button>
             </form>
         </div>
     </div>
 
-    <!-- 메인 레이아웃 -->
-    <div id="app" class="min-h-screen flex flex-col">
-        <!-- 상단 헤더 -->
-        <header class="bg-slate-900 text-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-3">
-                    <i class="fa-solid font-bold text-xl text-yellow-400 fa-shield-halved"></i>
-                    <h1 class="text-xl font-bold tracking-wide">안전 점검 관리 시스템</h1>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span id="authStatus" class="text-xs text-slate-400">인증 확인 중...</span>
-                    <button id="btnLogout" class="hidden text-xs bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1 rounded transition">로그아웃</button>
-                </div>
+    <!-- 상단 탭 및 시스템 헤더 -->
+    <div class="max-w-[1600px] mx-auto bg-white border border-slate-300 shadow-sm p-3 mb-2">
+        <div class="flex justify-between items-center mb-2">
+            <div class="flex gap-1">
+                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">노사합동점검</button>
+                <button class="bg-blue-900 text-white px-3 py-1 text-xs rounded-t font-bold">안전 브레인 스토밍</button>
+                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">안전지킴이</button>
+                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">합의체점검</button>
             </div>
-        </header>
+            <div class="flex items-center gap-3">
+                <span id="authStatus" class="text-xs text-slate-600">접속 계정: -</span>
+                <button id="btnLogout" class="hidden bg-slate-600 hover:bg-slate-700 text-white px-2 py-0.5 text-xs rounded">로그아웃</button>
+            </div>
+        </div>
 
-        <!-- 메인 콘텐츠 영역 -->
-        <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <!-- 좌측: 입력 폼 (점검 등록) -->
-            <section class="lg:col-span-6 bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
-                <div>
-                    <div class="flex justify-between items-center border-b pb-3 mb-4">
-                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <i class="fa-solid fa-pen-to-square text-blue-600"></i> 점검 등록
-                        </h2>
-                        <button id="btnSave" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center gap-2">
-                            <i class="fa-solid fa-floppy-disk"></i> 저장하기
-                        </button>
+        <div class="grid grid-cols-12 gap-3">
+            <!-- 좌측: 점검 등록 폼 -->
+            <div class="col-span-6 border border-slate-300 p-2 bg-white">
+                <div class="flex justify-between items-center bg-blue-900 text-white p-1.5 px-3 font-bold mb-2">
+                    <span><i class="fa-solid fa-pen-to-square"></i> 점검 등록 (안전 브레인 스토밍)</span>
+                    <button id="btnSave" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-0.5 rounded text-xs font-normal">
+                        <i class="fa-solid fa-floppy-disk"></i> 저장하기
+                    </button>
+                </div>
+
+                <div class="flex justify-between items-center border-b pb-1 mb-2 font-bold text-slate-700">
+                    <span>&gt; 안전 브레인 스토밍(26.09.07)</span>
+                    <span class="text-blue-900 font-extrabold italic">/// HWASHIN</span>
+                </div>
+
+                <!-- 사진 영역 -->
+                <div class="grid grid-cols-2 border border-slate-300 mb-2 min-h-[220px]">
+                    <!-- 개선 전 -->
+                    <div class="border-r border-slate-300 p-1 flex flex-col justify-between relative bg-slate-50" id="beforeDropZone">
+                        <div class="bg-slate-200 text-center font-bold py-0.5 border-b border-slate-300">개선 전</div>
+                        <div class="flex-1 flex items-center justify-center relative cursor-pointer min-h-[180px]">
+                            <img id="beforePreview" class="hidden absolute inset-0 w-full h-full object-contain p-1" />
+                            <div id="beforePlaceholder" class="text-center text-slate-400">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1"></i>
+                                <p class="text-[11px]">클릭/드래그 또는 Ctrl+V</p>
+                            </div>
+                        </div>
+                        <input type="file" id="beforeFileInput" accept="image/*" class="hidden">
                     </div>
-
-                    <!-- 사진 등록 구역 -->
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-2 flex flex-col items-center justify-center relative min-h-[200px] bg-slate-50 hover:bg-slate-100 transition group" id="beforeDropZone">
-                            <img id="beforePreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-lg" />
-                            <div id="beforePlaceholder" class="text-center p-4">
-                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2 group-hover:scale-110 transition"></i>
-                                <p class="text-xs font-semibold text-slate-600">개선 전 사진 등록</p>
-                                <p class="text-[10px] text-slate-400 mt-1">클릭/드래그 또는 Ctrl+V</p>
+                    <!-- 개선 후 -->
+                    <div class="p-1 flex flex-col justify-between relative bg-slate-50" id="afterDropZone">
+                        <div class="bg-slate-200 text-center font-bold py-0.5 border-b border-slate-300">개선 후</div>
+                        <div class="flex-1 flex items-center justify-center relative cursor-pointer min-h-[180px]">
+                            <img id="afterPreview" class="hidden absolute inset-0 w-full h-full object-contain p-1" />
+                            <div id="afterPlaceholder" class="text-center text-slate-400">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1"></i>
+                                <p class="text-[11px]">클릭/드래그 또는 Ctrl+V</p>
                             </div>
-                            <input type="file" id="beforeFileInput" accept="image/*" class="hidden">
                         </div>
-
-                        <div class="border-2 border-dashed border-slate-300 rounded-lg p-2 flex flex-col items-center justify-center relative min-h-[200px] bg-slate-50 hover:bg-slate-100 transition group" id="afterDropZone">
-                            <img id="afterPreview" class="hidden absolute inset-0 w-full h-full object-cover rounded-lg" />
-                            <div id="afterPlaceholder" class="text-center p-4">
-                                <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-400 mb-2 group-hover:scale-110 transition"></i>
-                                <p class="text-xs font-semibold text-slate-600">개선 후 사진 등록</p>
-                                <p class="text-[10px] text-slate-400 mt-1">클릭/드래그 또는 Ctrl+V</p>
-                            </div>
-                            <input type="file" id="afterFileInput" accept="image/*" class="hidden">
-                        </div>
+                        <input type="file" id="afterFileInput" accept="image/*" class="hidden">
                     </div>
+                </div>
 
-                    <!-- 입력 항목 -->
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">발견 내용</label>
-                            <input type="text" id="inputDiscovery" placeholder="불안전한 상태/행동을 입력하세요" class="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">개선 내용</label>
-                            <input type="text" id="inputImprovement" placeholder="개선 조치 사항을 입력하세요" class="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">점검 구역</label>
-                                <input type="text" id="inputArea" placeholder="예: 용접 라인" class="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-600 mb-1">대상 부서</label>
-                                <select id="selectDept" class="w-full text-sm p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <!-- 입력 표 -->
+                <table class="w-full table-custom text-xs">
+                    <tbody>
+                        <tr>
+                            <th class="w-16">발견</th>
+                            <td colspan="3"><input type="text" id="inputDiscovery" placeholder="불안전한 상태/행동 입력" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
+                        </tr>
+                        <tr>
+                            <th>개선안</th>
+                            <td colspan="3"><input type="text" id="inputImprovement" placeholder="개선 내용 입력" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
+                        </tr>
+                        <tr>
+                            <th class="w-16">점검 구역</th>
+                            <td><input type="text" id="inputArea" placeholder="예: 도장 라인" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
+                            <th class="w-16">대상 부서</th>
+                            <td>
+                                <select id="selectDept" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none">
                                     <option value="생산팀">생산팀</option>
                                     <option value="안전환경팀">안전환경팀</option>
                                     <option value="보전통합팀">보전통합팀</option>
                                     <option value="품질팀">품질팀</option>
                                 </select>
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 우측: 팀별 통계 및 조회 목록 -->
+            <div class="col-span-6 space-y-3">
+                <!-- 현황표 -->
+                <div class="border border-slate-300 p-2 bg-white">
+                    <div class="font-bold text-slate-800 mb-1 flex items-center gap-1">
+                        <i class="fa-solid fa-table-cells"></i> 팀별 점검 통계 현황
+                    </div>
+                    <table class="w-full table-custom text-xs">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>생산팀</th>
+                                <th>안전환경팀</th>
+                                <th>보전통합팀</th>
+                                <th>품질팀</th>
+                                <th>합계</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statTableBody">
+                            <tr><th>지적사항</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                            <tr><th>개선</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                            <tr><th>미개선</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                            <tr><th>개선율</th><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 조회 점검목록 -->
+                <div class="border border-slate-300 p-2 bg-white">
+                    <div class="font-bold text-slate-800 mb-2 flex justify-between items-center">
+                        <span><i class="fa-solid fa-list"></i> 조회 점검목록</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-[350px]">
+                        <table class="w-full table-custom text-xs">
+                            <thead>
+                                <tr>
+                                    <th class="w-8">순번</th>
+                                    <th>구분</th>
+                                    <th>상태</th>
+                                    <th>대상부서</th>
+                                    <th>점검구역</th>
+                                    <th>안전점검 내용</th>
+                                    <th class="w-16">등록일자</th>
+                                    <th class="w-10">삭제</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataListTable">
+                                <tr><td colspan="8" class="text-slate-400 py-4">데이터를 불러오는 중입니다...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </section>
-
-            <!-- 우측: 등록된 데이터 리스트 및 삭제 기능 -->
-            <section class="lg:col-span-6 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                <h2 class="text-lg font-bold text-slate-800 border-b pb-3 mb-4 flex items-center gap-2">
-                    <i class="fa-solid fa-list-check text-green-600"></i> 최근 점검 목록
-                </h2>
-                <div id="dataList" class="space-y-3 overflow-y-auto max-h-[600px] pr-1">
-                    <p class="text-sm text-slate-400 text-center py-8">로그인이 필요합니다.</p>
-                </div>
-            </section>
-
-        </main>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDK 모듈 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { 
-            getAuth, 
-            signInWithEmailAndPassword, 
-            signOut, 
-            onAuthStateChanged, 
-            EmailAuthProvider, 
-            reauthenticateWithCredential 
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            deleteDoc, 
-            doc, 
-            serverTimestamp, 
-            query, 
-            orderBy, 
-            onSnapshot 
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Firebase 설정
-        const firebaseConfig = {
+        // 사용자 실제 Firebase 정보 적용
+       const firebaseConfig = {
            apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
            authDomain: "hwashin-safety.firebaseapp.com",
            projectId: "hwashin-safety",
@@ -172,142 +202,99 @@
         let beforeImgData = "";
         let afterImgData = "";
 
-        // ==========================================
-        // 1. 로그인 및 인증 상태 제어
-        // ==========================================
-        const loginModal = document.getElementById('loginModal');
-        const loginForm = document.getElementById('loginForm');
-        const loginError = document.getElementById('loginError');
-        const authStatus = document.getElementById('authStatus');
-        const btnLogout = document.getElementById('btnLogout');
-
-        // 로그인 폼 제출 처리
-        loginForm.addEventListener('submit', async (e) => {
+        // 로그인 핸들러
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            loginError.classList.add('hidden');
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
-
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                loginForm.reset();
+                document.getElementById('loginError').classList.add('hidden');
             } catch (err) {
-                console.error(err);
-                loginError.innerText = "로그인 실패: 이메일 또는 비밀번호를 확인하세요.";
-                loginError.classList.remove('hidden');
+                document.getElementById('loginError').innerText = "로그인 실패: 정보를 확인하세요.";
+                document.getElementById('loginError').classList.remove('hidden');
             }
         });
 
-        // 로그아웃 버튼
-        btnLogout.addEventListener('click', () => signOut(auth));
+        document.getElementById('btnLogout').addEventListener('click', () => signOut(auth));
 
-        // 로그인 상태에 따른 화면 처리
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                loginModal.classList.add('hidden');
-                authStatus.innerText = `접속 계정: ${user.email}`;
-                btnLogout.classList.remove('hidden');
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('authStatus').innerText = `접속 계정: ${user.email}`;
+                document.getElementById('btnLogout').classList.remove('hidden');
                 loadDataList();
             } else {
-                loginModal.classList.remove('hidden');
-                authStatus.innerText = "로그인 필요";
-                btnLogout.classList.add('hidden');
-                document.getElementById('dataList').innerHTML = `<p class="text-sm text-slate-400 text-center py-8">로그인이 필요합니다.</p>`;
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('authStatus').innerText = "로그인 필요";
+                document.getElementById('btnLogout').classList.add('hidden');
             }
         });
 
-        // ==========================================
-        // 2. 이미지 리사이징 및 압축 (1MB 이하 제한)
-        // ==========================================
+        // 이미지 압축 (800px 축소, 1MB 제한 극복)
         function compressImage(file, maxWidth = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = (event) => {
+                reader.onload = (e) => {
                     const img = new Image();
-                    img.src = event.target.result;
+                    img.src = e.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > maxWidth) {
-                            height = Math.round((height * maxWidth) / width);
-                            width = maxWidth;
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
-
+                        let w = img.width, h = img.height;
+                        if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
                         const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-
-                        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-                        resolve(compressedBase64);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
                     };
-                    img.onerror = (err) => reject(err);
                 };
-                reader.onerror = (err) => reject(err);
             });
         }
 
-        async function handleImageUpload(file, targetType) {
+        async function handleImageUpload(file, target) {
             if (!file || !file.type.startsWith("image/")) return;
-            try {
-                const compressedBase64 = await compressImage(file);
-                if (targetType === 'before') {
-                    beforeImgData = compressedBase64;
-                    document.getElementById('beforePreview').src = compressedBase64;
-                    document.getElementById('beforePreview').classList.remove('hidden');
-                    document.getElementById('beforePlaceholder').classList.add('hidden');
-                } else {
-                    afterImgData = compressedBase64;
-                    document.getElementById('afterPreview').src = compressedBase64;
-                    document.getElementById('afterPreview').classList.remove('hidden');
-                    document.getElementById('afterPlaceholder').classList.add('hidden');
-                }
-            } catch (error) {
-                alert("이미지 처리 중 오류가 발생했습니다.");
+            const compressed = await compressImage(file);
+            if (target === 'before') {
+                beforeImgData = compressed;
+                document.getElementById('beforePreview').src = compressed;
+                document.getElementById('beforePreview').classList.remove('hidden');
+                document.getElementById('beforePlaceholder').classList.add('hidden');
+            } else {
+                afterImgData = compressed;
+                document.getElementById('afterPreview').src = compressed;
+                document.getElementById('afterPreview').classList.remove('hidden');
+                document.getElementById('afterPlaceholder').classList.add('hidden');
             }
         }
 
-        const setupImageSlot = (zoneId, inputId, targetType) => {
-            const zone = document.getElementById(zoneId);
-            const input = document.getElementById(inputId);
-
-            zone.addEventListener('click', () => input.click());
-            input.addEventListener('change', (e) => {
-                if (e.target.files[0]) handleImageUpload(e.target.files[0], targetType);
+        const setupSlot = (zoneId, inputId, target) => {
+            document.getElementById(zoneId).addEventListener('click', () => document.getElementById(inputId).click());
+            document.getElementById(inputId).addEventListener('change', (e) => {
+                if (e.target.files[0]) handleImageUpload(e.target.files[0], target);
             });
-
             document.addEventListener('paste', (e) => {
                 const items = e.clipboardData.items;
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].type.indexOf('image') !== -1) {
-                        const blob = items[i].getAsFile();
-                        handleImageUpload(blob, targetType);
+                        handleImageUpload(items[i].getAsFile(), target);
                         break;
                     }
                 }
             });
         };
 
-        setupImageSlot('beforeDropZone', 'beforeFileInput', 'before');
-        setupImageSlot('afterDropZone', 'afterFileInput', 'after');
+        setupSlot('beforeDropZone', 'beforeFileInput', 'before');
+        setupSlot('afterDropZone', 'afterFileInput', 'after');
 
-        // ==========================================
-        // 3. 점검 데이터 저장
-        // ==========================================
+        // 저장 기능
         document.getElementById('btnSave').addEventListener('click', async () => {
             const discovery = document.getElementById('inputDiscovery').value.trim();
             const improvement = document.getElementById('inputImprovement').value.trim();
             const area = document.getElementById('inputArea').value.trim();
             const dept = document.getElementById('selectDept').value;
 
-            if (!discovery) {
-                alert("발견 내용을 입력해 주세요.");
-                return;
-            }
+            if (!discovery) { alert("발견 내용을 입력해 주세요."); return; }
 
             try {
                 await addDoc(collection(db, "checklists"), {
@@ -319,88 +306,63 @@
                     dept: dept,
                     createdAt: serverTimestamp()
                 });
-
-                alert("성공적으로 저장되었습니다.");
-
-                document.getElementById('inputDiscovery').value = "";
-                document.getElementById('inputImprovement').value = "";
-                document.getElementById('inputArea').value = "";
-                document.getElementById('beforePreview').classList.add('hidden');
-                document.getElementById('beforePlaceholder').classList.remove('hidden');
-                document.getElementById('afterPreview').classList.add('hidden');
-                document.getElementById('afterPlaceholder').classList.remove('hidden');
-                beforeImgData = "";
-                afterImgData = "";
-
+                alert("저장되었습니다.");
+                location.reload();
             } catch (err) {
-                console.error(err);
-                alert("데이터 저장 실패");
+                alert("저장 실패");
             }
         });
 
-        // ==========================================
-        // 4. 삭제 시 비밀번호 재확인 및 삭제 처리
-        // ==========================================
+        // 비밀번호 확인 후 삭제 기능
         window.deleteChecklist = async function(docId) {
             const user = auth.currentUser;
-            if (!user) {
-                alert("로그인이 필요합니다.");
-                return;
-            }
-
-            const inputPassword = prompt("데이터를 삭제하시겠습니까?\n본인 확인을 위해 현재 계정의 비밀번호를 입력해 주세요.");
-            if (!inputPassword) return; // 취소 클릭 시
+            if (!user) return;
+            const pw = prompt("삭제 권한 확인을 위해 현재 계정의 비밀번호를 입력해 주세요.");
+            if (!pw) return;
 
             try {
-                // 입력받은 비밀번호로 인증 재검증
-                const credential = EmailAuthProvider.credential(user.email, inputPassword);
-                await reauthenticateWithCredential(user, credential);
-
-                // 재인증 성공 시 삭제 진행
+                const cred = EmailAuthProvider.credential(user.email, pw);
+                await reauthenticateWithCredential(user, cred);
                 await deleteDoc(doc(db, "checklists", docId));
-                alert("데이터가 올바르게 삭제되었습니다.");
+                alert("삭제되었습니다.");
             } catch (err) {
-                console.error("삭제 검증 실패:", err);
-                alert("삭제 실패: 비밀번호가 일치하지 않거나 권한이 없습니다.");
+                alert("삭제 실패: 비밀번호가 일치하지 않습니다.");
             }
         };
 
-        // ==========================================
-        // 5. 실시간 목록 조회
-        // ==========================================
+        // 데이터 실시간 로드 및 통계 계산
         function loadDataList() {
             const q = query(collection(db, "checklists"), orderBy("createdAt", "desc"));
             onSnapshot(q, (snapshot) => {
-                const listEl = document.getElementById('dataList');
+                const tbody = document.getElementById('dataListTable');
                 if (snapshot.empty) {
-                    listEl.innerHTML = `<p class="text-sm text-slate-400 text-center py-8">등록된 점검 내역이 없습니다.</p>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-slate-400 py-4">등록된 점검 내역이 없습니다.</td></tr>`;
                     return;
                 }
 
                 let html = "";
+                let index = 1;
                 snapshot.forEach((docItem) => {
-                    const data = docItem.data();
-                    const docId = docItem.id;
+                    const d = docItem.data();
+                    const dateStr = d.createdAt ? new Date(d.createdAt.seconds * 1000).toISOString().slice(2, 10).replace(/-/g, '.') : '-';
                     html += `
-                        <div class="p-3 border border-slate-200 rounded-lg flex gap-3 bg-slate-50 items-center justify-between">
-                            <div class="flex gap-3 items-center overflow-hidden">
-                                ${data.beforeImg ? `<img src="${data.beforeImg}" class="w-16 h-16 object-cover rounded-md flex-shrink-0">` : `<div class="w-16 h-16 bg-slate-200 rounded-md flex items-center justify-center text-[10px] text-slate-400 flex-shrink-0">사진 없음</div>`}
-                                <div class="text-xs space-y-1 overflow-hidden">
-                                    <div class="font-bold text-slate-800 text-sm truncate">${data.discovery || '내용 없음'}</div>
-                                    <div class="text-slate-600 truncate">조치: ${data.improvement || '-'}</div>
-                                    <div class="flex gap-2 text-[10px] text-slate-400">
-                                        <span>구역: ${data.area || '-'}</span>
-                                        <span>부서: ${data.dept}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <button onclick="deleteChecklist('${docId}')" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition flex-shrink-0" title="삭제">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
+                        <tr>
+                            <td>${index++}</td>
+                            <td><span class="bg-red-500 text-white px-1 rounded text-[10px]">개선요청</span></td>
+                            <td>불안전 상태</td>
+                            <td>${d.dept}</td>
+                            <td>${d.area || '-'}</td>
+                            <td class="text-left">${d.discovery || '-'}</td>
+                            <td>${dateStr}</td>
+                            <td>
+                                <button onclick="deleteChecklist('${docItem.id}')" class="text-red-600 hover:text-red-800">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
                     `;
                 });
-                listEl.innerHTML = html;
+                tbody.innerHTML = html;
             });
         }
     </script>
