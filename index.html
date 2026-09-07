@@ -368,7 +368,7 @@
     <!-- Firebase SDK 모듈 스크립트 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -386,6 +386,9 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
+
+        // 삭제 전용 마스터 비밀번호 지정 (원하는 비밀번호로 설정)
+        const DELETE_MASTER_KEY = "hwashin1234!";
 
         window.dbData = [];
         window.firebaseAuth = auth;
@@ -494,43 +497,51 @@
             }
         };
 
+        // 단일 항목 삭제 (삭제 전용 마스터 비밀번호 검증)
         window.deleteRecordFromFirestore = async function(docId) {
             const user = auth.currentUser;
             if(!user) return;
 
-            const pw = prompt("안전을 위해 계정 비밀번호를 다시 입력해 주세요.");
-            if(!pw) return;
+            const inputKey = prompt("삭제 권한 확인을 위해 삭제 전용 마스터 비밀번호를 입력해 주세요.");
+            if(!inputKey) return;
+
+            if (inputKey.trim() !== DELETE_MASTER_KEY) {
+                alert("삭제 마스터 비밀번호가 일치하지 않습니다.");
+                return;
+            }
 
             try {
-                const cred = EmailAuthProvider.credential(user.email, pw);
-                await reauthenticateWithCredential(user, cred);
                 await deleteDoc(doc(db, "checklists", docId));
                 if(window.editingId === docId) window.resetForm();
                 window.showToast('삭제되었습니다.');
             } catch(err) {
-                alert('비밀번호가 일치하지 않거나 삭제 실패했습니다.');
+                console.error("삭제 오류:", err);
+                alert('삭제 처리 중 오류가 발생했습니다: ' + err.message);
             }
         };
 
+        // 다중 선택 삭제 (삭제 전용 마스터 비밀번호 검증)
         window.deleteMultipleRecordsFromFirestore = async function(docIds) {
             const user = auth.currentUser;
             if(!user) return;
 
-            const pw = prompt(`선택한 ${docIds.length}개 항목을 삭제합니다. 계정 비밀번호를 입력해 주세요.`);
-            if(!pw) return;
+            const inputKey = prompt(`선택한 ${docIds.length}개 항목을 삭제합니다. 삭제 전용 마스터 비밀번호를 입력해 주세요.`);
+            if(!inputKey) return;
+
+            if (inputKey.trim() !== DELETE_MASTER_KEY) {
+                alert("삭제 마스터 비밀번호가 일치하지 않습니다.");
+                return;
+            }
 
             try {
-                const cred = EmailAuthProvider.credential(user.email, pw);
-                await reauthenticateWithCredential(user, cred);
-                
                 for (const docId of docIds) {
                     await deleteDoc(doc(db, "checklists", docId));
                     if(window.editingId === docId) window.resetForm();
                 }
-                
                 window.showToast(`${docIds.length}개 항목이 삭제되었습니다.`);
             } catch(err) {
-                alert('비밀번호가 일치하지 않거나 삭제 실패했습니다.');
+                console.error("일괄 삭제 오류:", err);
+                alert('삭제 처리 중 오류가 발생했습니다: ' + err.message);
             }
         };
     </script>
@@ -608,7 +619,6 @@
             refreshDataView();
         }
 
-        /* 날짜 필터링 기준: 지도일자(guideDate) 사용 */
         function getPeriodFilteredData() {
             const type = document.getElementById('filter-type').value;
             const db = window.dbData || [];
@@ -906,11 +916,9 @@
             }
         }
 
-        /* 내보내기 대상 데이터 추출 헬퍼 함수 (체크박스 선택 시 선택 항목만, 미선택 시 기간 필터 및 드롭다운 조건 전체 반영) */
         function getTargetExportData() {
             const periodList = getPeriodFilteredData();
             
-            // 드롭다운 2차 필터링 조건 동일 적용
             const sF = document.getElementById('col-filter-status').value, 
                   tF = document.getElementById('col-filter-type').value, 
                   tgF = document.getElementById('col-filter-target').value;
@@ -920,7 +928,6 @@
             if(tF !== 'all') filteredList = filteredList.filter(i => i.type === tF);
             if(tgF !== 'all') filteredList = filteredList.filter(i => i.target === tgF);
 
-            // 지도일자 정렬 적용
             filteredList.sort((a,b) => {
                 const dateA = a.guideDate ? new Date(a.guideDate) : new Date(0);
                 const dateB = b.guideDate ? new Date(b.guideDate) : new Date(0);
