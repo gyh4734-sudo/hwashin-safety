@@ -549,6 +549,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
             getFirestore, 
             collection, 
             doc, 
@@ -568,6 +573,7 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const dbFS = getFirestore(app);
         const collectionRef = collection(dbFS, "safety_records");
 
@@ -578,6 +584,7 @@
         let editingId = null;
         let images = { beforeCell: '', afterCell: '' };
         let currentFilterDate = new Date();
+        let currentUser = null;
 
         window.onload = function() {
             const now = new Date();
@@ -585,6 +592,18 @@
             document.getElementById('input-guide-date').value = now.toISOString().substring(0, 10);
             initFilterPicker();
             
+            // Firebase Authentication 익명 인증 처리
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    console.log("인증 완료 UID:", user.uid);
+                } else {
+                    signInAnonymously(auth).catch((error) => {
+                        console.error("익명 로그인 오류:", error);
+                    });
+                }
+            });
+
             // Firestore 실시간 데이터 수신
             onSnapshot(collectionRef, (snapshot) => {
                 db = [];
@@ -790,6 +809,7 @@
                 completeDate: document.getElementById('input-complete-date').value,
                 beforeImg: images.beforeCell,
                 afterImg: images.afterCell,
+                createdBy: currentUser ? currentUser.uid : "anonymous",
                 regDate: editingId ? (db.find(d => d.id === editingId)?.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
             };
 
