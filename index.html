@@ -3,237 +3,623 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>안전 브레인 스토밍</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>HWASHIN 예산공장 안전점검 통합 관리 System</title>
+    <!-- PPTX 및 XLSX 외부 라이브러리 (조건 5, 6 부합) -->
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
     <style>
-        body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 12px; }
-        .table-custom th, .table-custom td { border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; }
-        .table-custom th { background-color: #f1f5f9; font-weight: bold; }
+        :root {
+            --primary-blue: #003882;
+            --header-blue: #002659;
+            --bg-gray: #f4f6f9;
+            --border-black: #111111;
+            --header-light-blue: #D6E4FF;
+            --label-gray: #F2F2F2;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: var(--bg-gray); font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 20px; color: #333; }
+
+        /* 로그인 모달 스타일 (조건 3) */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center; z-index: 10000;
+        }
+        .modal-box {
+            background: white; width: 360px; padding: 25px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
+        }
+        .modal-title { font-size: 16px; font-weight: bold; color: var(--primary-blue); margin-bottom: 15px; }
+        .modal-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
+        .modal-btn { width: 100%; padding: 10px; background: var(--primary-blue); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .modal-btn:hover { opacity: 0.9; }
+        .error-msg { color: #dc3545; font-size: 11px; margin-bottom: 10px; display: none; }
+
+        .app-header {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .user-info { font-size: 12px; display: flex; align-items: center; gap: 10px; }
+        .btn-logout { background: #002659; border: 1px solid #fff; color: white; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; }
+
+        .nav-tabs {
+            display: flex; gap: 10px; background: white; padding: 10px; border-radius: 6px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 20px; border: none; background: #e9ecef; color: #495057; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s;
+        }
+
+        .tab-btn.active { background: var(--primary-blue); color: white; }
+
+        .main-container {
+            display: grid; grid-template-columns: 1020px 1fr; gap: 20px; align-items: start;
+        }
+
+        @media (max-width: 1600px) { .main-container { grid-template-columns: 1fr; } }
+
+        .card { background: white; padding: 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--primary-blue); display: flex; justify-content: space-between; align-items: center; }
+
+        .filter-bar { display: flex; align-items: center; gap: 6px; background: #eef2f7; padding: 6px 12px; border-radius: 6px; border: 1px solid #dcdfe6; }
+        .filter-bar select, .filter-bar input { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; outline: none; }
+        .filter-nav-btn { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
+        .filter-nav-btn:hover { background: #e9ecef; }
+
+        .ppt-frame { width: 980px; height: 680px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; position: relative; margin: 0 auto; }
+        .ppt-header-bar { background-color: var(--primary-blue); height: 46px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; color: white; }
+        .ppt-header-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: bold; }
+
+        .logo-container { display: flex; align-items: center; gap: 5px; font-weight: 900; font-size: 16px; letter-spacing: 1px; }
+        .logo-shape { width: 5px; height: 15px; background-color: white; transform: skewX(-20deg); }
+
+        .ppt-sub-header { padding: 8px 15px 4px 15px; }
+        .factory-badge { background-color: var(--primary-blue); color: white; padding: 3px 15px; font-size: 14px; font-weight: bold; display: inline-block; }
+
+        .ppt-main-content { padding: 0 15px 15px 15px; flex-grow: 1; display: flex; }
+        .ppt-table { width: 100%; height: 100%; border-collapse: collapse; border: 1px solid var(--border-black); table-layout: fixed; }
+        .ppt-table th, .ppt-table td { border: 1px solid var(--border-black); padding: 0; vertical-align: middle; font-size: 13px; }
+
+        .col-header { background-color: var(--header-light-blue); height: 30px; text-align: center; font-weight: bold; font-size: 15px; }
+        .image-cell { height: 380px; position: relative; background-color: #fafafa; text-align: center; cursor: pointer; }
+        .image-cell.focused { outline: 3px solid var(--primary-blue); outline-offset: -3px; }
+
+        .dropzone-text { color: #777; font-size: 13px; line-height: 1.6; }
+        .dropzone-text i { font-size: 32px; color: #aaa; margin-bottom: 8px; }
+        .dropzone-text .highlight { color: var(--primary-blue); font-weight: bold; }
+
+        .preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .image-controls { position: absolute; top: 5px; right: 5px; display: none; gap: 5px; z-index: 10; }
+        .image-cell:hover .image-controls { display: flex; }
+        .img-btn { background: rgba(0,0,0,0.6); color: white; border: none; width: 26px; height: 26px; border-radius: 3px; cursor: pointer; }
+
+        .label-cell { background-color: var(--label-gray); font-weight: bold; text-align: center; letter-spacing: 1px; }
+        .input-cell { padding: 3px 6px !important; }
+
+        .cell-input, .cell-textarea, .cell-select { width: 100%; height: 100%; border: none; outline: none; background: transparent; font-size: 13px; font-family: inherit; resize: none; }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-primary { background: var(--primary-blue); color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn:hover { opacity: 0.9; }
+
+        .stats-matrix-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; margin-top: 5px; }
+        .stats-matrix-table th, .stats-matrix-table td { border: 1px solid #111; padding: 7px 4px; }
+        .stats-matrix-table th { background-color: #f2f2f2; font-weight: bold; }
+        .stats-matrix-table td:first-child { background-color: #f2f2f2; font-weight: bold; }
+
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .data-table th, .data-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
+        .data-table th { background: #f2f2f2; }
+        .data-table tbody tr { cursor: pointer; transition: background 0.2s; }
+        .data-table tbody tr:hover { background-color: #e9ecef; }
+        .data-table tbody tr.selected-row { background-color: #d6e4ff; font-weight: bold; }
+
+        .table-filter-select { width: 100%; font-size: 11px; padding: 2px 4px; border: 1px solid #aaa; border-radius: 3px; background: white; outline: none; font-weight: bold; }
+        .badge-status { padding: 2px 6px; border-radius: 3px; font-size: 10px; color: white; font-weight: bold; }
+        .bg-before { background-color: #dc3545; }
+        .bg-after { background-color: #28a745; }
+
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 56, 130, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
+        .toast.show { opacity: 1; }
     </style>
 </head>
-<body class="bg-slate-200 p-2 text-slate-800">
+<body>
 
-    <!-- 로그인 모달 -->
-    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded shadow-lg p-6 w-full max-w-sm border border-slate-300">
-            <div class="text-center mb-4">
-                <i class="fa-solid fa-shield-halved text-3xl text-blue-800 mb-2"></i>
-                <h2 class="text-base font-bold text-slate-800">안전 점검 시스템 로그인</h2>
-            </div>
-            <form id="loginForm" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold mb-1">이메일</label>
-                    <input type="email" id="loginEmail" required class="w-full text-xs p-2 border border-slate-300 rounded focus:outline-none focus:border-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold mb-1">비밀번호</label>
-                    <input type="password" id="loginPassword" required class="w-full text-xs p-2 border border-slate-300 rounded focus:outline-none focus:border-blue-600">
-                </div>
-                <div id="loginError" class="text-xs text-red-500 font-semibold hidden text-center"></div>
-                <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 rounded text-xs">로그인</button>
+    <!-- 1. 로그인 인증 모달 (조건 3) -->
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title"><i class="fa-solid fa-shield-halved"></i> 안전 점검 시스템 로그인</div>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" class="modal-input" placeholder="이메일 입력" required>
+                <input type="password" id="loginPassword" class="modal-input" placeholder="비밀번호 입력" required>
+                <div id="loginError" class="error-msg">이메일 또는 비밀번호가 일치하지 않습니다.</div>
+                <button type="submit" class="modal-btn">로그인</button>
             </form>
         </div>
     </div>
 
-    <!-- 상단 탭 및 시스템 헤더 -->
-    <div class="max-w-[1600px] mx-auto bg-white border border-slate-300 shadow-sm p-3 mb-2">
-        <div class="flex justify-between items-center mb-2">
-            <div class="flex gap-1">
-                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">노사합동점검</button>
-                <button class="bg-blue-900 text-white px-3 py-1 text-xs rounded-t font-bold">안전 브레인 스토밍</button>
-                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">안전지킴이</button>
-                <button class="bg-slate-500 text-white px-3 py-1 text-xs rounded-t font-bold">합의체점검</button>
-            </div>
-            <div class="flex items-center gap-3">
-                <span id="authStatus" class="text-xs text-slate-600">접속 계정: -</span>
-                <button id="btnLogout" class="hidden bg-slate-600 hover:bg-slate-700 text-white px-2 py-0.5 text-xs rounded">로그아웃</button>
-            </div>
+    <!-- 헤더 영역 -->
+    <div class="app-header">
+        <h2>HWASHIN 예산공장 안전점검 통합 관리 System</h2>
+        <div class="user-info">
+            <span id="current-date"></span>
+            <span id="user-display" style="font-weight: bold;"></span>
+            <button id="btn-logout" class="btn-logout" style="display:none;">로그아웃</button>
         </div>
+    </div>
 
-        <div class="grid grid-cols-12 gap-3">
-            <!-- 좌측: 점검 등록 폼 -->
-            <div class="col-span-6 border border-slate-300 p-2 bg-white">
-                <div class="flex justify-between items-center bg-blue-900 text-white p-1.5 px-3 font-bold mb-2">
-                    <span><i class="fa-solid fa-pen-to-square"></i> 점검 등록 (안전 브레인 스토밍)</span>
-                    <button id="btnSave" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-0.5 rounded text-xs font-normal">
-                        <i class="fa-solid fa-floppy-disk"></i> 저장하기
-                    </button>
+    <!-- 탭 메뉴 -->
+    <div class="nav-tabs">
+        <button class="tab-btn" onclick="switchCategory('노사합동점검')">노사합동점검</button>
+        <button class="tab-btn active" onclick="switchCategory('안전 브레인 스토밍')">안전 브레인 스토밍</button>
+        <button class="tab-btn" onclick="switchCategory('안전지킴이')">안전지킴이</button>
+        <button class="tab-btn" onclick="switchCategory('협의체점검')">협의체점검</button>
+    </div>
+
+    <!-- 메인 레이아웃 -->
+    <div class="main-container">
+        <div>
+            <div class="card">
+                <div class="card-title">
+                    <span>
+                        <i class="fa-solid fa-pen-to-square"></i> 
+                        <span id="form-mode-title">점검 등록</span> (<span id="category-name-display">안전 브레인 스토밍</span>)
+                    </span>
+                    <div>
+                        <button id="btn-cancel-edit" class="btn btn-secondary" onclick="resetForm()" style="display:none;"><i class="fa-solid fa-rotate-left"></i> 신규 등록으로 전환</button>
+                        <button id="btn-save" class="btn btn-primary" onclick="saveRecord()"><i class="fa-solid fa-floppy-disk"></i> 저장하기</button>
+                    </div>
                 </div>
 
-                <div class="flex justify-between items-center border-b pb-1 mb-2 font-bold text-slate-700">
-                    <span>&gt; 안전 브레인 스토밍(26.09.07)</span>
-                    <span class="text-blue-900 font-extrabold italic">/// HWASHIN</span>
-                </div>
-
-                <!-- 사진 영역 -->
-                <div class="grid grid-cols-2 border border-slate-300 mb-2 min-h-[220px]">
-                    <!-- 개선 전 -->
-                    <div class="border-r border-slate-300 p-1 flex flex-col justify-between relative bg-slate-50" id="beforeDropZone">
-                        <div class="bg-slate-200 text-center font-bold py-0.5 border-b border-slate-300">개선 전</div>
-                        <div class="flex-1 flex items-center justify-center relative cursor-pointer min-h-[180px]">
-                            <img id="beforePreview" class="hidden absolute inset-0 w-full h-full object-contain p-1" />
-                            <div id="beforePlaceholder" class="text-center text-slate-400">
-                                <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1"></i>
-                                <p class="text-[11px]">클릭/드래그 또는 Ctrl+V</p>
-                            </div>
+                <div class="ppt-frame">
+                    <div class="ppt-header-bar">
+                        <div class="ppt-header-title">
+                            <span>➢</span>
+                            <span id="ppt-title-text">안전 브레인 스토밍</span>
                         </div>
-                        <input type="file" id="beforeFileInput" accept="image/*" class="hidden">
-                    </div>
-                    <!-- 개선 후 -->
-                    <div class="p-1 flex flex-col justify-between relative bg-slate-50" id="afterDropZone">
-                        <div class="bg-slate-200 text-center font-bold py-0.5 border-b border-slate-300">개선 후</div>
-                        <div class="flex-1 flex items-center justify-center relative cursor-pointer min-h-[180px]">
-                            <img id="afterPreview" class="hidden absolute inset-0 w-full h-full object-contain p-1" />
-                            <div id="afterPlaceholder" class="text-center text-slate-400">
-                                <i class="fa-solid fa-cloud-arrow-up text-2xl mb-1"></i>
-                                <p class="text-[11px]">클릭/드래그 또는 Ctrl+V</p>
-                            </div>
+                        <div class="logo-container">
+                            <div class="logo-shape"></div>
+                            <div class="logo-shape"></div>
+                            <div class="logo-shape"></div>
+                            <span>HWASHIN</span>
                         </div>
-                        <input type="file" id="afterFileInput" accept="image/*" class="hidden">
                     </div>
-                </div>
 
-                <!-- 입력 표 -->
-                <table class="w-full table-custom text-xs">
-                    <tbody>
-                        <tr>
-                            <th class="w-16">발견</th>
-                            <td colspan="3"><input type="text" id="inputDiscovery" placeholder="불안전한 상태/행동 입력" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
-                        </tr>
-                        <tr>
-                            <th>개선안</th>
-                            <td colspan="3"><input type="text" id="inputImprovement" placeholder="개선 내용 입력" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
-                        </tr>
-                        <tr>
-                            <th class="w-16">점검 구역</th>
-                            <td><input type="text" id="inputArea" placeholder="예: 도장 라인" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none"></td>
-                            <th class="w-16">대상 부서</th>
-                            <td>
-                                <select id="selectDept" class="w-full border border-slate-300 p-1 rounded-none focus:outline-none">
-                                    <option value="생산팀">생산팀</option>
-                                    <option value="안전환경팀">안전환경팀</option>
-                                    <option value="보전통합팀">보전통합팀</option>
-                                    <option value="품질팀">품질팀</option>
-                                </select>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- 우측: 팀별 통계 및 조회 목록 -->
-            <div class="col-span-6 space-y-3">
-                <!-- 현황표 -->
-                <div class="border border-slate-300 p-2 bg-white">
-                    <div class="font-bold text-slate-800 mb-1 flex items-center gap-1">
-                        <i class="fa-solid fa-table-cells"></i> 팀별 점검 통계 현황
+                    <div class="ppt-sub-header">
+                        <div class="factory-badge" id="factory-seq-code">예산 공장-1</div>
                     </div>
-                    <table class="w-full table-custom text-xs">
-                        <thead>
-                            <tr>
-                                <th>구분</th>
-                                <th>생산팀</th>
-                                <th>안전환경팀</th>
-                                <th>보전통합팀</th>
-                                <th>품질팀</th>
-                                <th>합계</th>
-                            </tr>
-                        </thead>
-                        <tbody id="statTableBody">
-                            <tr><th>지적사항</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                            <tr><th>개선</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                            <tr><th>미개선</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                            <tr><th>개선율</th><td>0%</td><td>0%</td><td>0%</td><td>0%</td><td>0%</td></tr>
-                        </tbody>
-                    </table>
-                </div>
 
-                <!-- 조회 점검목록 -->
-                <div class="border border-slate-300 p-2 bg-white">
-                    <div class="font-bold text-slate-800 mb-2 flex justify-between items-center">
-                        <span><i class="fa-solid fa-list"></i> 조회 점검목록</span>
-                    </div>
-                    <div class="overflow-x-auto max-h-[350px]">
-                        <table class="w-full table-custom text-xs">
+                    <div class="ppt-main-content">
+                        <table class="ppt-table">
+                            <colgroup>
+                                <col style="width: 8%;"><col style="width: 22%;"><col style="width: 8%;"><col style="width: 12%;">
+                                <col style="width: 8%;"><col style="width: 22%;"><col style="width: 8%;"><col style="width: 12%;">
+                            </colgroup>
                             <thead>
                                 <tr>
-                                    <th class="w-8">순번</th>
-                                    <th>구분</th>
-                                    <th>상태</th>
-                                    <th>대상부서</th>
-                                    <th>점검구역</th>
-                                    <th>안전점검 내용</th>
-                                    <th class="w-16">등록일자</th>
-                                    <th class="w-10">삭제</th>
+                                    <th colspan="4" class="col-header">개선 전</th>
+                                    <th colspan="4" class="col-header">개선 후</th>
                                 </tr>
                             </thead>
-                            <tbody id="dataListTable">
-                                <tr><td colspan="8" class="text-slate-400 py-4">데이터를 불러오는 중입니다...</td></tr>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
+                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('beforeCell', event)"><i class="fa-solid fa-trash"></i></button></div>
+                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
+                                        <img id="beforeImg" class="preview-img" style="display:none;">
+                                        <input type="file" id="beforeInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
+                                    </td>
+                                    <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
+                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('afterCell', event)"><i class="fa-solid fa-trash"></i></button></div>
+                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
+                                        <img id="afterImg" class="preview-img" style="display:none;">
+                                        <input type="file" id="afterInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
+                                    </td>
+                                </tr>
+
+                                <tr style="height: 50px;">
+                                    <td class="label-cell">안 건</td>
+                                    <td colspan="3" class="input-cell"><textarea id="input-item" class="cell-textarea" placeholder="안건 내용 입력"></textarea></td>
+                                    <td class="label-cell">개선안</td>
+                                    <td colspan="3" class="input-cell"><textarea id="input-solution" class="cell-textarea" placeholder="개선안 내용 입력"></textarea></td>
+                                </tr>
+                                <tr style="height: 32px;">
+                                    <td class="label-cell">점검 구역</td>
+                                    <td class="input-cell"><input type="text" id="input-zone" class="cell-input" placeholder="구역 입력"></td>
+                                    <td class="label-cell">대 상</td>
+                                    <td class="input-cell">
+                                        <select id="input-target" class="cell-select">
+                                            <option value="생산팀">생산팀</option>
+                                            <option value="안전환경노무팀">안전환경노무팀</option>
+                                            <option value="생관물류팀">생관물류팀</option>
+                                            <option value="품질팀">품질팀</option>
+                                            <option value="HR다인">HR다인</option>
+                                        </select>
+                                    </td>
+                                    <td class="label-cell">조치 부서</td>
+                                    <td colspan="3" class="input-cell"><input type="text" id="input-dept" class="cell-input" placeholder="담당 부서 입력"></td>
+                                </tr>
+                                <tr style="height: 32px;">
+                                    <td class="label-cell">상태/행동</td>
+                                    <td class="input-cell">
+                                        <select id="input-type" class="cell-select">
+                                            <option value="불안전 상태">불안전 상태</option>
+                                            <option value="불안전 행동">불안전 행동</option>
+                                        </select>
+                                    </td>
+                                    <td class="label-cell">지도 일자</td>
+                                    <td class="input-cell"><input type="date" id="input-guide-date" class="cell-input" onchange="onGuideDateChange()"></td>
+                                    <td class="label-cell">계획 일자</td>
+                                    <td class="input-cell"><input type="date" id="input-plan-date" class="cell-input"></td>
+                                    <td class="label-cell">완료 일자</td>
+                                    <td class="input-cell"><input type="date" id="input-complete-date" class="cell-input"></td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div>
+            <div class="card" style="padding: 12px 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:bold; font-size:14px; color:var(--primary-blue);"><i class="fa-solid fa-calendar-days"></i> 기간 선택</span>
+                    <div class="filter-bar">
+                        <select id="filter-type" onchange="onFilterTypeChange()">
+                            <option value="all">전체보기</option>
+                            <option value="daily">일간</option>
+                            <option value="weekly">주간</option>
+                            <option value="monthly" selected>월간</option>
+                            <option value="yearly">연간</option>
+                        </select>
+                        <button class="filter-nav-btn" onclick="navigateDate(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                        <span id="picker-container"></span>
+                        <button class="filter-nav-btn" onclick="navigateDate(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span><i class="fa-solid fa-table"></i> 팀별 점검 통계 현황</span>
+                </div>
+                <table class="stats-matrix-table">
+                    <thead>
+                        <tr>
+                            <th id="matrix-period-label">기간</th>
+                            <th>생산팀</th>
+                            <th>안전환경노무팀</th>
+                            <th>생관물류팀</th>
+                            <th>품질팀</th>
+                            <th>HR다인</th>
+                            <th>총합</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <div><i class="fa-solid fa-list"></i> <span>조회 점검목록</span></div>
+                    <div style="display:flex; gap: 5px;">
+                        <button class="btn btn-success" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
+                        <button class="btn btn-secondary" onclick="exportToPPT()"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <colgroup>
+                            <col style="width: 5%;"><col style="width: 12%;"><col style="width: 14%;"><col style="width: 12%;"><col style="width: 12%;"><col style="width: 25%;"><col style="width: 12%;"><col style="width: 8%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>번호</th>
+                                <th><select id="col-filter-status" class="table-filter-select" onchange="refreshDataView()"><option value="all">구분(전체)</option><option value="before">개선전</option><option value="after">개선후</option></select></th>
+                                <th><select id="col-filter-type" class="table-filter-select" onchange="refreshDataView()"><option value="all">상태(전체)</option><option value="불안전 상태">불안전 상태</option><option value="불안전 행동">불안전 행동</option></select></th>
+                                <th><select id="col-filter-target" class="table-filter-select" onchange="refreshDataView()"><option value="all">대상(전체)</option><option value="생산팀">생산팀</option><option value="안전환경노무팀">안전환경노무팀</option><option value="생관물류팀">생관물류팀</option><option value="품질팀">품질팀</option><option value="HR다인">HR다인</option></select></th>
+                                <th>점검구역</th><th>안건</th><th>지도일자 ▲</th><th>삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-list-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase SDK 모듈 -->
+    <div id="toast" class="toast">메시지</div>
+
+    <!-- Firebase SDK 모듈 스크립트 (조건 2) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 사용자 실제 Firebase 정보 적용
-       const firebaseConfig = {
-           apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
-           authDomain: "hwashin-safety.firebaseapp.com",
-           projectId: "hwashin-safety",
-           storageBucket: "hwashin-safety.firebasestorage.app",
-           messagingSenderId: "925751971876",
-           appId: "1:925751971876:web:57cb605106c4973e4688b1",
-           measurementId: "G-VBZF0P12B5"
-};
+        // 사용자 Firebase 실제 프로젝트 정보 적용 (조건 2)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG2O3c",
+            authDomain: "hwashin-safety.firebaseapp.com",
+            projectId: "hwashin-safety",
+            storageBucket: "hwashin-safety.firebasestorage.app",
+            messagingSenderId: "925751971876",
+            appId: "1:925751971876:web:57cb605106c4973e4688b1",
+            measurementId: "G-VBZF0P12B5"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let beforeImgData = "";
-        let afterImgData = "";
+        // 글로벌 변수 바인딩
+        window.dbData = [];
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
 
-        // 로그인 핸들러
+        // 로그인 이벤트
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+            const pw = document.getElementById('loginPassword').value;
             try {
-                await signInWithEmailAndPassword(auth, email, password);
-                document.getElementById('loginError').classList.add('hidden');
+                await signInWithEmailAndPassword(auth, email, pw);
+                document.getElementById('loginError').style.display = 'none';
             } catch (err) {
-                document.getElementById('loginError').innerText = "로그인 실패: 정보를 확인하세요.";
-                document.getElementById('loginError').classList.remove('hidden');
+                document.getElementById('loginError').style.display = 'block';
             }
         });
 
-        document.getElementById('btnLogout').addEventListener('click', () => signOut(auth));
+        document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
 
+        // 로그인 상태 감지
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                document.getElementById('loginModal').classList.add('hidden');
-                document.getElementById('authStatus').innerText = `접속 계정: ${user.email}`;
-                document.getElementById('btnLogout').classList.remove('hidden');
-                loadDataList();
+                document.getElementById('loginModal').style.display = 'none';
+                document.getElementById('user-display').innerText = `접속 계정: ${user.email}`;
+                document.getElementById('btn-logout').style.display = 'inline-block';
+                subscribeFirestore();
             } else {
-                document.getElementById('loginModal').classList.remove('hidden');
-                document.getElementById('authStatus').innerText = "로그인 필요";
-                document.getElementById('btnLogout').classList.add('hidden');
+                document.getElementById('loginModal').style.display = 'flex';
+                document.getElementById('user-display').innerText = '';
+                document.getElementById('btn-logout').style.display = 'none';
+                window.dbData = [];
+                if (window.refreshDataView) window.refreshDataView();
             }
         });
 
-        // 이미지 압축 (800px 축소, 1MB 제한 극복)
+        // 실시간 Firestore 구독
+        function subscribeFirestore() {
+            const q = query(collection(db, "checklists"), orderBy("createdAt", "desc"));
+            onSnapshot(q, (snapshot) => {
+                window.dbData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                if (window.updateCategoryUI) window.updateCategoryUI();
+            });
+        }
+
+        // 글로벌 DB 연동 기능 등록
+        window.saveRecordToFirestore = async function(recordData) {
+            try {
+                if (window.editingId) {
+                    const docRef = doc(db, "checklists", window.editingId);
+                    await updateDoc(docRef, recordData);
+                    window.showToast('수정되었습니다.');
+                } else {
+                    recordData.createdAt = serverTimestamp();
+                    await addDoc(collection(db, "checklists"), recordData);
+                    window.showToast('저장되었습니다.');
+                }
+                window.resetForm();
+            } catch (err) {
+                alert('데이터 저장 중 오류가 발생했습니다: ' + err.message);
+            }
+        };
+
+        window.deleteRecordFromFirestore = async function(docId) {
+            const user = auth.currentUser;
+            if(!user) return;
+
+            const pw = prompt("안전을 위해 계정 비밀번호를 다시 입력해 주세요.");
+            if(!pw) return;
+
+            try {
+                const cred = EmailAuthProvider.credential(user.email, pw);
+                await reauthenticateWithCredential(user, cred);
+                await deleteDoc(doc(db, "checklists", docId));
+                if(window.editingId === docId) window.resetForm();
+                window.showToast('삭제되었습니다.');
+            } catch(err) {
+                alert('비밀번호가 일치하지 않거나 삭제 실패했습니다.');
+            }
+        };
+    </script>
+
+    <!-- 기존 앱 제어 메인 논리 스크립트 -->
+    <script>
+        const TARGET_TEAMS = ['생산팀', '안전환경노무팀', '생관물류팀', '품질팀', 'HR다인'];
+        let currentCategory = '안전 브레인 스토밍';
+        let selectedCell = 'beforeCell';
+        let editingId = null;
+        let images = { beforeCell: '', afterCell: '' };
+        let currentFilterDate = new Date();
+
+        window.onload = function() {
+            const now = new Date();
+            document.getElementById('current-date').innerText = now.getFullYear() + '.' + String(now.getMonth()+1).padStart(2,'0') + '.' + String(now.getDate()).padStart(2,'0');
+            document.getElementById('input-guide-date').value = now.toISOString().substring(0, 10);
+            initFilterPicker();
+            updateCategoryUI();
+        };
+
+        function switchCategory(categoryName) {
+            currentCategory = categoryName;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.innerText.replace(/\s+/g, '') === categoryName.replace(/\s+/g, '')));
+            resetForm();
+            updateCategoryUI();
+        }
+
+        function initFilterPicker() {
+            const type = document.getElementById('filter-type').value;
+            const container = document.getElementById('picker-container');
+            const yyyy = currentFilterDate.getFullYear(), mm = String(currentFilterDate.getMonth()+1).padStart(2,'0'), dd = String(currentFilterDate.getDate()).padStart(2,'0');
+            if(type === 'daily' || type === 'weekly') container.innerHTML = `<input type="date" id="picker-input" value="${yyyy}-${mm}-${dd}" onchange="onPickerChange(this.value)">`;
+            else if(type === 'monthly') container.innerHTML = `<input type="month" id="picker-input" value="${yyyy}-${mm}" onchange="onPickerChange(this.value)">`;
+            else if(type === 'yearly') container.innerHTML = `<input type="number" id="picker-input" value="${yyyy}" min="2000" max="2099" style="width:70px;" onchange="onPickerChange(this.value)">`;
+            else container.innerHTML = `<span style="font-size:12px; color:#666;">전체 범위</span>`;
+        }
+
+        function onFilterTypeChange() { initFilterPicker(); refreshDataView(); }
+        function onPickerChange(val) {
+            const type = document.getElementById('filter-type').value;
+            if(type === 'daily' || type === 'weekly') currentFilterDate = new Date(val);
+            else if(type === 'monthly') { const [y, m] = val.split('-'); currentFilterDate = new Date(y, parseInt(m)-1, 1); }
+            else if(type === 'yearly') currentFilterDate = new Date(parseInt(val), 0, 1);
+            refreshDataView();
+        }
+
+        function navigateDate(delta) {
+            const type = document.getElementById('filter-type').value;
+            if(type === 'daily') currentFilterDate.setDate(currentFilterDate.getDate()+delta);
+            else if(type === 'weekly') currentFilterDate.setDate(currentFilterDate.getDate()+(delta*7));
+            else if(type === 'monthly') currentFilterDate.setMonth(currentFilterDate.getMonth()+delta);
+            else if(type === 'yearly') currentFilterDate.setFullYear(currentFilterDate.getFullYear()+delta);
+            initFilterPicker(); refreshDataView();
+        }
+
+        function onGuideDateChange() { updateHeaderDate(); }
+        function updateHeaderDate() {
+            const gVal = document.getElementById('input-guide-date').value;
+            let fDate = '';
+            if(gVal) { const d = new Date(gVal); fDate = `(${String(d.getFullYear()).substring(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')})`; }
+            document.getElementById('ppt-title-text').innerText = `${currentCategory}${fDate}`;
+        }
+
+        function updateCategoryUI() {
+            document.getElementById('category-name-display').innerText = currentCategory;
+            updateHeaderDate();
+            if(!editingId) {
+                const today = new Date().toISOString().substring(0, 10);
+                const db = window.dbData || [];
+                const count = db.filter(d => d.category === currentCategory && d.regDate === today).length;
+                document.getElementById('factory-seq-code').innerText = `예산 공장-${count + 1}`;
+            }
+            refreshDataView();
+        }
+
+        function getPeriodFilteredData() {
+            const type = document.getElementById('filter-type').value;
+            const db = window.dbData || [];
+            let list = db.filter(d => d.category === currentCategory);
+            if(type !== 'all') {
+                list = list.filter(item => {
+                    if(!item.guideDate) return false;
+                    const t = new Date(item.guideDate);
+                    if(type === 'daily') return t.toDateString() === currentFilterDate.toDateString();
+                    if(type === 'weekly') { const s = new Date(currentFilterDate); s.setDate(s.getDate()-3); const e = new Date(currentFilterDate); e.setDate(e.getDate()+3); return t >= s && t <= e; }
+                    if(type === 'monthly') return t.getFullYear() === currentFilterDate.getFullYear() && t.getMonth() === currentFilterDate.getMonth();
+                    if(type === 'yearly') return t.getFullYear() === currentFilterDate.getFullYear();
+                    return true;
+                });
+            }
+            return list;
+        }
+
+        function refreshDataView() {
+            const pList = getPeriodFilteredData();
+            renderMatrixStats(pList);
+            let fList = pList;
+            const sF = document.getElementById('col-filter-status').value, tF = document.getElementById('col-filter-type').value, tgF = document.getElementById('col-filter-target').value;
+            if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? (i.afterImg || i.completeDate) : !(i.afterImg || i.completeDate));
+            if(tF !== 'all') fList = fList.filter(i => i.type === tF);
+            if(tgF !== 'all') fList = fList.filter(i => i.target === tgF);
+            fList.sort((a,b) => new Date(a.guideDate || 0) - new Date(b.guideDate || 0));
+            renderList(fList);
+        }
+
+        function renderMatrixStats(pData) {
+            const type = document.getElementById('filter-type').value;
+            const y = String(currentFilterDate.getFullYear()).substring(2), m = String(currentFilterDate.getMonth()+1).padStart(2,'0'), d = String(currentFilterDate.getDate()).padStart(2,'0');
+            document.getElementById('matrix-period-label').innerText = (type === 'daily') ? `${y}.${m}.${d}` : (type === 'monthly') ? `${y}년 ${m}월` : (type === 'yearly') ? `${y}년` : (type === 'all') ? '전체' : `${y}.${m} 주간`;
+            
+            let html = '', sumI = 0, sumD = 0, sumU = 0;
+            const counts = TARGET_TEAMS.map(team => {
+                const items = pData.filter(d => d.target === team);
+                const iC = items.length, dC = items.filter(d => d.afterImg || d.completeDate).length, uC = iC - dC;
+                sumI += iC; sumD += dC; sumU += uC;
+                return { team, iC, dC, uC, rate: iC > 0 ? Math.round((dC/iC)*100)+'%' : '-' };
+            });
+
+            const rows = ['지적사항', '개선', '미개선', '개선율'];
+            rows.forEach(label => {
+                html += `<tr><td>${label}</td>`;
+                counts.forEach(c => {
+                    let val = (label === '지적사항') ? c.iC : (label === '개선') ? c.dC : (label === '미개선') ? (c.iC === 0 ? '-' : c.uC) : c.rate;
+                    html += `<td>${val}</td>`;
+                });
+                let totalVal = (label === '지적사항') ? sumI : (label === '개선') ? sumD : (label === '미개선') ? (sumI === 0 ? '-' : sumU) : (sumI > 0 ? Math.round((sumD/sumI)*100)+'%' : '-');
+                html += `<td style="font-weight:bold;">${totalVal}</td></tr>`;
+            });
+            document.getElementById('matrix-body').innerHTML = html;
+        }
+
+        function renderList(list) {
+            const tbody = document.getElementById('data-list-body'); tbody.innerHTML = '';
+            list.forEach((row, idx) => {
+                const tr = document.createElement('tr'); if(editingId === row.id) tr.className = 'selected-row';
+                const isAfter = (row.afterImg || row.completeDate);
+                tr.onclick = () => loadRecordForEdit(row.id);
+                tr.innerHTML = `<td>${idx+1}</td><td><span class="badge-status ${isAfter ? 'bg-after' : 'bg-before'}">${isAfter ? '개선후' : '개선전'}</span></td><td>${row.type}</td><td>${row.target}</td><td>${row.zone || '-'}</td><td style="text-align:left;">${row.item}</td><td>${row.guideDate ? row.guideDate.substring(2).replace(/-/g,'.') : ''}</td><td><button class="btn btn-danger" style="padding:2px 6px; font-size:10px;" onclick="deleteRecord(event, '${row.id}')"><i class="fa-solid fa-trash"></i></button></td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function selectCell(id) { 
+            selectedCell = id; 
+            document.getElementById('beforeCell').classList.remove('focused'); 
+            document.getElementById('afterCell').classList.remove('focused'); 
+            document.getElementById(id).classList.add('focused'); 
+        }
+
+        document.getElementById('beforeCell').addEventListener('click', (e) => { 
+            if(!e.target.closest('.image-controls') && !images.beforeCell) document.getElementById('beforeInput').click(); 
+        });
+        document.getElementById('afterCell').addEventListener('click', (e) => { 
+            if(!e.target.closest('.image-controls') && !images.afterCell) document.getElementById('afterInput').click(); 
+        });
+
+        function handleFileSelect(e, id) { const f = e.target.files[0]; if(f) renderImg(f, id); }
+
+        document.addEventListener('paste', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if(activeTag === 'textarea' || activeTag === 'input') return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for(let item of items) {
+                if(item.type.indexOf('image') !== -1) {
+                    renderImg(item.getAsFile(), selectedCell);
+                    break;
+                }
+            }
+        });
+
+        // 4. 이미지 용량 압축 처리 Canvas API (조건 4)
         function compressImage(file, maxWidth = 800, quality = 0.7) {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = (e) => {
@@ -252,118 +638,235 @@
             });
         }
 
-        async function handleImageUpload(file, target) {
-            if (!file || !file.type.startsWith("image/")) return;
-            const compressed = await compressImage(file);
-            if (target === 'before') {
-                beforeImgData = compressed;
-                document.getElementById('beforePreview').src = compressed;
-                document.getElementById('beforePreview').classList.remove('hidden');
-                document.getElementById('beforePlaceholder').classList.add('hidden');
-            } else {
-                afterImgData = compressed;
-                document.getElementById('afterPreview').src = compressed;
-                document.getElementById('afterPreview').classList.remove('hidden');
-                document.getElementById('afterPlaceholder').classList.add('hidden');
+        async function renderImg(file, id) {
+            const compressedBase64 = await compressImage(file);
+            images[id] = compressedBase64;
+            const isBefore = (id === 'beforeCell');
+            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').src = compressedBase64;
+            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').style.display = 'block';
+            document.getElementById(isBefore ? 'beforeText' : 'afterText').style.display = 'none';
+        }
+
+        function clearImg(id, event) {
+            if(event) event.stopPropagation();
+            images[id] = '';
+            const isBefore = (id === 'beforeCell');
+            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').src = '';
+            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').style.display = 'none';
+            document.getElementById(isBefore ? 'beforeText' : 'afterText').style.display = 'block';
+            document.getElementById(isBefore ? 'beforeInput' : 'afterInput').value = '';
+        }
+
+        function saveRecord() {
+            const itemVal = document.getElementById('input-item').value.trim();
+            if(!itemVal) { alert('안건 내용을 입력해주세요.'); return; }
+
+            const db = window.dbData || [];
+            const recordData = {
+                category: currentCategory,
+                seqCode: document.getElementById('factory-seq-code').innerText,
+                item: itemVal,
+                solution: document.getElementById('input-solution').value.trim(),
+                zone: document.getElementById('input-zone').value.trim(),
+                target: document.getElementById('input-target').value,
+                dept: document.getElementById('input-dept').value.trim(),
+                type: document.getElementById('input-type').value,
+                guideDate: document.getElementById('input-guide-date').value,
+                planDate: document.getElementById('input-plan-date').value,
+                completeDate: document.getElementById('input-complete-date').value,
+                beforeImg: images.beforeCell,
+                afterImg: images.afterCell,
+                regDate: editingId ? (db.find(d => d.id === editingId)?.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
+            };
+
+            if (window.saveRecordToFirestore) {
+                window.saveRecordToFirestore(recordData);
             }
         }
 
-        const setupSlot = (zoneId, inputId, target) => {
-            document.getElementById(zoneId).addEventListener('click', () => document.getElementById(inputId).click());
-            document.getElementById(inputId).addEventListener('change', (e) => {
-                if (e.target.files[0]) handleImageUpload(e.target.files[0], target);
-            });
-            document.addEventListener('paste', (e) => {
-                const items = e.clipboardData.items;
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf('image') !== -1) {
-                        handleImageUpload(items[i].getAsFile(), target);
-                        break;
+        function loadRecordForEdit(id) {
+            const db = window.dbData || [];
+            const row = db.find(d => d.id === id);
+            if(!row) return;
+            editingId = row.id;
+            window.editingId = row.id;
+            document.getElementById('form-mode-title').innerText = '점검 수정';
+            document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
+            document.getElementById('factory-seq-code').innerText = row.seqCode || '예산 공장-1';
+            
+            document.getElementById('input-item').value = row.item || '';
+            document.getElementById('input-solution').value = row.solution || '';
+            document.getElementById('input-zone').value = row.zone || '';
+            document.getElementById('input-target').value = row.target || '생산팀';
+            document.getElementById('input-dept').value = row.dept || '';
+            document.getElementById('input-type').value = row.type || '불안전 상태';
+            document.getElementById('input-guide-date').value = row.guideDate || '';
+            document.getElementById('input-plan-date').value = row.planDate || '';
+            document.getElementById('input-complete-date').value = row.completeDate || '';
+
+            clearImg('beforeCell'); clearImg('afterCell');
+            if(row.beforeImg) {
+                images.beforeCell = row.beforeImg;
+                document.getElementById('beforeImg').src = row.beforeImg;
+                document.getElementById('beforeImg').style.display = 'block';
+                document.getElementById('beforeText').style.display = 'none';
+            }
+            if(row.afterImg) {
+                images.afterCell = row.afterImg;
+                document.getElementById('afterImg').src = row.afterImg;
+                document.getElementById('afterImg').style.display = 'block';
+                document.getElementById('afterText').style.display = 'none';
+            }
+            updateHeaderDate();
+            refreshDataView();
+        }
+
+        function resetForm() {
+            editingId = null;
+            window.editingId = null;
+            document.getElementById('form-mode-title').innerText = '점검 등록';
+            document.getElementById('btn-cancel-edit').style.display = 'none';
+            
+            document.getElementById('input-item').value = '';
+            document.getElementById('input-solution').value = '';
+            document.getElementById('input-zone').value = '';
+            document.getElementById('input-target').value = '생산팀';
+            document.getElementById('input-dept').value = '';
+            document.getElementById('input-type').value = '불안전 상태';
+            
+            const today = new Date().toISOString().substring(0, 10);
+            document.getElementById('input-guide-date').value = today;
+            document.getElementById('input-plan-date').value = '';
+            document.getElementById('input-complete-date').value = '';
+
+            clearImg('beforeCell'); clearImg('afterCell');
+            updateCategoryUI();
+        }
+
+        function deleteRecord(e, id) {
+            e.stopPropagation();
+            if(window.deleteRecordFromFirestore) {
+                window.deleteRecordFromFirestore(id);
+            }
+        }
+
+        // 5. Excel 내보내기 함수 (조건 5)
+        function exportToExcel() {
+            const list = getPeriodFilteredData();
+            if(list.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+            
+            const excelData = list.map((item, idx) => ({
+                '번호': idx + 1,
+                '구분': (item.afterImg || item.completeDate) ? '개선후' : '개선전',
+                '점검분류': item.category,
+                '공장식별': item.seqCode,
+                '상태/행동': item.type,
+                '대상팀': item.target,
+                '점검구역': item.zone,
+                '안건': item.item,
+                '개선안': item.solution,
+                '조치부서': item.dept,
+                '지도일자': item.guideDate,
+                '계획일자': item.planDate,
+                '완료일자': item.completeDate
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "점검목록");
+            XLSX.writeFile(workbook, `안전점검내역_${currentCategory}_${new Date().toISOString().substring(0,10)}.xlsx`);
+        }
+
+        // 6. PPT 내보내기 정밀 함수 (조건 6 파이썬 양식 완벽 호환)
+        function exportToPPT() {
+            try {
+                const list = getPeriodFilteredData();
+                if(list.length === 0) { alert('내보낼 데이터가 없습니다.'); return; }
+
+                let pptx = new PptxGenJS();
+                pptx.defineLayout({ name: 'STANDARD_4_3', width: 10.0, height: 7.5 });
+                pptx.layout = 'STANDARD_4_3';
+
+                list.forEach(item => {
+                    let slide = pptx.addSlide();
+                    let fDate = item.guideDate ? `(${item.guideDate.substring(2).replace(/-/g,'.')})` : '';
+
+                    // 헤더 바
+                    slide.addShape(pptx.shapes.RECTANGLE, { x: 0, y: 0, w: 10.0, h: 0.55, fill: { color: '003882' }, line: { color: '003882' } });
+                    slide.addText(`➢ ${item.category}${fDate}`, { x: 0.2, y: 0.1, w: 7.0, h: 0.35, fontSize: 16, bold: true, color: 'FFFFFF' });
+                    slide.addText('HWASHIN', { x: 7.5, y: 0.1, w: 2.3, h: 0.35, fontSize: 14, bold: true, color: 'FFFFFF', align: 'right' });
+
+                    // 배지
+                    slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 0.65, w: 1.3, h: 0.28, fill: { color: '003882' }, line: { color: '003882' } });
+                    slide.addText(item.seqCode || '예산 공장-1', { x: 0.2, y: 0.65, w: 1.3, h: 0.28, fontSize: 10, bold: true, color: 'FFFFFF', align: 'center' });
+
+                    // 개선 전 / 후 헤더
+                    slide.addTable([
+                        [
+                            { text: '개선 전', options: { fill: 'D6E4FF', fontFace: '맑은 고딕', fontSize: 11, bold: true, align: 'center' } },
+                            { text: '개선 후', options: { fill: 'D6E4FF', fontFace: '맑은 고딕', fontSize: 11, bold: true, align: 'center' } }
+                        ]
+                    ], { x: 0.2, y: 1.0, w: 9.6, h: 0.35, border: { type: 'solid', pt: 1, color: '111111' }, colW: [4.8, 4.8] });
+
+                    // 이미지 프레임
+                    slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
+                    slide.addShape(pptx.shapes.RECTANGLE, { x: 5.0, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
+
+                    if(item.beforeImg && item.beforeImg.startsWith('data:image')) {
+                        slide.addImage({ data: item.beforeImg, x: 0.25, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
                     }
-                }
-            });
-        };
+                    if(item.afterImg && item.afterImg.startsWith('data:image')) {
+                        slide.addImage({ data: item.afterImg, x: 5.05, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
+                    }
 
-        setupSlot('beforeDropZone', 'beforeFileInput', 'before');
-        setupSlot('afterDropZone', 'afterFileInput', 'after');
-
-        // 저장 기능
-        document.getElementById('btnSave').addEventListener('click', async () => {
-            const discovery = document.getElementById('inputDiscovery').value.trim();
-            const improvement = document.getElementById('inputImprovement').value.trim();
-            const area = document.getElementById('inputArea').value.trim();
-            const dept = document.getElementById('selectDept').value;
-
-            if (!discovery) { alert("발견 내용을 입력해 주세요."); return; }
-
-            try {
-                await addDoc(collection(db, "checklists"), {
-                    beforeImg: beforeImgData,
-                    afterImg: afterImgData,
-                    discovery: discovery,
-                    improvement: improvement,
-                    area: area,
-                    dept: dept,
-                    createdAt: serverTimestamp()
+                    // 하단 정보 레이아웃 표
+                    slide.addTable([
+                        [
+                            { text: '안 건', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.item || '', options: { colspan: 3, align: 'left', valign: 'middle' } },
+                            { text: '개선안', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.solution || '', options: { colspan: 3, align: 'left', valign: 'middle' } }
+                        ],
+                        [
+                            { text: '점검 구역', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.zone || '', options: { align: 'center', valign: 'middle' } },
+                            { text: '대 상', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.target || '', options: { align: 'center', valign: 'middle' } },
+                            { text: '조치 부서', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.dept || '', options: { colspan: 3, align: 'center', valign: 'middle' } }
+                        ],
+                        [
+                            { text: '상태/행동', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.type || '', options: { align: 'center', valign: 'middle' } },
+                            { text: '지도 일자', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.guideDate || '', options: { align: 'center', valign: 'middle' } },
+                            { text: '계획 일자', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.planDate || '', options: { align: 'center', valign: 'middle' } },
+                            { text: '완료 일자', options: { fill: 'F2F2F2', bold: true, align: 'center', valign: 'middle' } },
+                            { text: item.completeDate || '', options: { align: 'center', valign: 'middle' } }
+                        ]
+                    ], { 
+                        x: 0.2, y: 5.25, w: 9.6, h: 1.9, 
+                        border: { type: 'solid', pt: 1, color: '111111' },
+                        colW: [1.0, 1.4, 1.0, 1.4, 1.0, 1.4, 1.0, 1.4],
+                        fontFace: '맑은 고딕', 
+                        fontSize: 9.5,
+                        autoPage: false
+                    });
                 });
-                alert("저장되었습니다.");
-                location.reload();
+
+                pptx.writeFile({ fileName: `안전점검보고서_${currentCategory}_${new Date().toISOString().substring(0,10)}.pptx` });
             } catch (err) {
-                alert("저장 실패");
+                console.error('PPT 생성 오류:', err);
+                alert('PPT 내보내기 도중 오류가 발생했습니다.');
             }
-        });
+        }
 
-        // 비밀번호 확인 후 삭제 기능
-        window.deleteChecklist = async function(docId) {
-            const user = auth.currentUser;
-            if (!user) return;
-            const pw = prompt("삭제 권한 확인을 위해 현재 계정의 비밀번호를 입력해 주세요.");
-            if (!pw) return;
-
-            try {
-                const cred = EmailAuthProvider.credential(user.email, pw);
-                await reauthenticateWithCredential(user, cred);
-                await deleteDoc(doc(db, "checklists", docId));
-                alert("삭제되었습니다.");
-            } catch (err) {
-                alert("삭제 실패: 비밀번호가 일치하지 않습니다.");
-            }
-        };
-
-        // 데이터 실시간 로드 및 통계 계산
-        function loadDataList() {
-            const q = query(collection(db, "checklists"), orderBy("createdAt", "desc"));
-            onSnapshot(q, (snapshot) => {
-                const tbody = document.getElementById('dataListTable');
-                if (snapshot.empty) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="text-slate-400 py-4">등록된 점검 내역이 없습니다.</td></tr>`;
-                    return;
-                }
-
-                let html = "";
-                let index = 1;
-                snapshot.forEach((docItem) => {
-                    const d = docItem.data();
-                    const dateStr = d.createdAt ? new Date(d.createdAt.seconds * 1000).toISOString().slice(2, 10).replace(/-/g, '.') : '-';
-                    html += `
-                        <tr>
-                            <td>${index++}</td>
-                            <td><span class="bg-red-500 text-white px-1 rounded text-[10px]">개선요청</span></td>
-                            <td>불안전 상태</td>
-                            <td>${d.dept}</td>
-                            <td>${d.area || '-'}</td>
-                            <td class="text-left">${d.discovery || '-'}</td>
-                            <td>${dateStr}</td>
-                            <td>
-                                <button onclick="deleteChecklist('${docItem.id}')" class="text-red-600 hover:text-red-800">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                tbody.innerHTML = html;
-            });
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
     </script>
 </body>
