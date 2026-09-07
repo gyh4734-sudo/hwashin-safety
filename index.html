@@ -323,7 +323,6 @@
                 <div class="card-title">
                     <div><i class="fa-solid fa-list"></i> <span>조회 점검목록</span></div>
                     <div style="display:flex; gap: 5px;">
-                        <!-- PPT 파일 업로드 전용 hidden input 및 버튼 -->
                         <input type="file" id="ppt-import-input" accept=".pptx" style="display:none;" onchange="handlePPTImport(event)">
                         <button class="btn btn-warning" onclick="document.getElementById('ppt-import-input').click()"><i class="fa-solid fa-file-import"></i> PPT 불러오기</button>
                         <button class="btn btn-danger" onclick="deleteSelectedRecords()"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
@@ -371,6 +370,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
@@ -385,6 +385,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         window.dbData = [];
         window.firebaseAuth = auth;
@@ -431,8 +432,36 @@
             });
         }
 
+        // 이미지 Base64 데이터를 Storage에 올린 뒤 HTTP 다운로드 URL을 반환하는 내부 함수
+        async function uploadImageToStorage(dataUrl, prefix) {
+            if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl || '';
+            
+            // 이미 Storage URL 형태인 경우 그대로 반환
+            if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) {
+                return dataUrl;
+            }
+
+            const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
+            const storageRef = ref(storage, `images/${fileName}`);
+            
+            // Base64 Data URL을 Storage에 직접 업로드
+            const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
+            return await getDownloadURL(snapshot.ref);
+        }
+
         window.saveRecordToFirestore = async function(recordData) {
             try {
+                window.showToast('이미지 업로드 및 저장 중...');
+
+                // 1. Base64 이미지를 Firebase Storage로 자동으로 업로드 후 URL 확보
+                if (recordData.beforeImg) {
+                    recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
+                }
+                if (recordData.afterImg) {
+                    recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
+                }
+
+                // 2. 확보된 URL을 포함해 Firestore에 기록
                 if (window.editingId) {
                     const docRef = doc(db, "checklists", window.editingId);
                     await updateDoc(docRef, recordData);
@@ -444,20 +473,29 @@
                 }
                 window.resetForm();
             } catch (err) {
+                console.error("저장 오류:", err);
                 alert('데이터 저장 중 오류가 발생했습니다: ' + err.message);
             }
         };
 
-        // PPT 등 일괄 저장을 위한 전용 함수
+        // PPT 등 일괄 저장을 위한 전용 함수 (Storage 자동 업로드 연동)
         window.batchSaveToFirestore = async function(recordsArray) {
             try {
+                window.showToast('이미지 업로드 및 데이터 복원 중...');
                 for (let recordData of recordsArray) {
+                    if (recordData.beforeImg) {
+                        recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
+                    }
+                    if (recordData.afterImg) {
+                        recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
+                    }
                     recordData.createdAt = serverTimestamp();
                     await addDoc(collection(db, "checklists"), recordData);
                 }
                 window.showToast(`${recordsArray.length}건의 실적이 성공적으로 복원/저장되었습니다.`);
                 window.resetForm();
             } catch (err) {
+                console.error("일괄 저장 오류:", err);
                 alert('일괄 저장 중 오류가 발생했습니다: ' + err.message);
             }
         };
@@ -656,7 +694,7 @@
                 tr.innerHTML = `
                     <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="${row.id}" onchange="checkRowSelectState()" style="cursor:pointer;"></td>
                     <td>${idx+1}</td>
-                    <td><span class="badge-status ${isAfter ? 'bg-after' : 'bg-before'}">${isAfter ? '개선후' : '개선후'}</span></td>
+                    <td><span class="badge-status ${isAfter ? 'bg-after' : 'bg-before'}">${isAfter ? '개선후' : '개선전'}</span></td>
                     <td>${row.type}</td>
                     <td>${row.target}</td>
                     <td>${row.zone || '-'}</td>
@@ -911,11 +949,13 @@
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 5.0, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
 
-                    if(item.beforeImg && item.beforeImg.startsWith('data:image')) {
-                        slide.addImage({ data: item.beforeImg, x: 0.25, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
+                    if(item.beforeImg) {
+                        const imgOpt = item.beforeImg.startsWith('http') ? { path: item.beforeImg } : { data: item.beforeImg };
+                        slide.addImage({ ...imgOpt, x: 0.25, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
                     }
-                    if(item.afterImg && item.afterImg.startsWith('data:image')) {
-                        slide.addImage({ data: item.afterImg, x: 5.05, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
+                    if(item.afterImg) {
+                        const imgOpt = item.afterImg.startsWith('http') ? { path: item.afterImg } : { data: item.afterImg };
+                        slide.addImage({ ...imgOpt, x: 5.05, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
                     }
 
                     slide.addTable([
@@ -978,7 +1018,6 @@
                     return;
                 }
 
-                // 슬라이드 파일 정렬 (slide1.xml, slide2.xml ... 순서)
                 slideFiles.sort((a, b) => {
                     const numA = parseInt(a.match(/\d+/)[0]);
                     const numB = parseInt(b.match(/\d+/)[0]);
@@ -993,7 +1032,6 @@
                     const parser = new DOMParser();
                     const xmlDoc = parser.parseFromString(slideXmlStr, 'text/xml');
 
-                    // 1. 텍스트 추출 (a:t 태그들 추출)
                     const textNodes = xmlDoc.getElementsByTagName('a:t');
                     const texts = [];
                     for (let t = 0; t < textNodes.length; t++) {
@@ -1001,7 +1039,6 @@
                         if (val) texts.push(val);
                     }
 
-                    // 2. 이미지 매핑 및 Base64 추출 (rels 파싱)
                     const slideNum = slideFileName.match(/\d+/)[0];
                     const relsFileName = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
                     let imageBase64List = [];
@@ -1020,7 +1057,6 @@
                             }
                         }
 
-                        // 슬라이드 내blip 인덱스 기반 매핑
                         const blips = xmlDoc.getElementsByTagName('a:blip');
                         for (let b = 0; b < blips.length; b++) {
                             const embedId = blips[b].getAttribute('r:embed');
@@ -1037,10 +1073,6 @@
                         }
                     }
 
-                    // 3. 추출 텍스트에서 항목 매핑
-                    const fullText = texts.join(' ');
-                    
-                    // 텍스트 인덱스 기반 파싱 도우미 함수
                     const getValueAfterLabel = (label) => {
                         const idx = texts.findIndex(t => t.replace(/\s+/g, '') === label.replace(/\s+/g, ''));
                         return (idx !== -1 && idx + 1 < texts.length) ? texts[idx + 1] : '';
@@ -1054,7 +1086,6 @@
                     const dept = getValueAfterLabel('조치부서') || getValueAfterLabel('조치 부서');
                     const type = getValueAfterLabel('상태/행동') || '불안전 상태';
                     
-                    // 날짜 추출 (YYYY-MM-DD 포맷 정규식)
                     const extractDate = (label) => {
                         const val = getValueAfterLabel(label);
                         const match = val.match(/\d{4}-\d{2}-\d{2}/);
@@ -1065,7 +1096,6 @@
                     const planDate = extractDate('계획일자') || extractDate('계획 일자');
                     const completeDate = extractDate('완료일자') || extractDate('완료 일자');
 
-                    // 이미지 할당 (첫 번째: 개선전, 두 번째: 개선후)
                     const beforeImg = imageBase64List[0] || '';
                     const afterImg = imageBase64List[1] || '';
 
@@ -1104,7 +1134,7 @@
                 console.error('PPT 분석 에러:', err);
                 alert('PPT 파일을 읽는 중 오류가 발생했습니다. 해당 웹사이트에서 출력된 PPT 파일인지 확인해주세요.');
             } finally {
-                e.target.value = ''; // 파일 체인지 이벤트 재동작을 위해 리셋
+                e.target.value = '';
             }
         }
 
