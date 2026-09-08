@@ -409,8 +409,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
@@ -484,6 +484,17 @@
             return await getDownloadURL(snapshot.ref);
         }
 
+        // Storage에 저장된 이미지 URL을 기반으로 파일 삭제 수행 헬퍼 함수
+        async function deleteStorageImage(imageUrl) {
+            if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.includes('firebasestorage.googleapis.com')) return;
+            try {
+                const imageRef = ref(storage, imageUrl);
+                await deleteObject(imageRef);
+            } catch (err) {
+                console.log("이미지 파일 삭제 중 이미 없거나 경로 오류 발생:", err);
+            }
+        }
+
         window.saveRecordToFirestore = async function(recordData) {
             try {
                 window.showToast('이미지 업로드 및 저장 중...');
@@ -496,6 +507,18 @@
                 }
 
                 if (window.editingId) {
+                    // 수정 시 기존 이미지와 달라졌다면 이전 스토리지 이미지 정리 지원
+                    const oldDocSnap = await getDoc(doc(db, "checklists", window.editingId));
+                    if (oldDocSnap.exists()) {
+                        const oldData = oldDocSnap.data();
+                        if (oldData.beforeImg && oldData.beforeImg !== recordData.beforeImg) {
+                            await deleteStorageImage(oldData.beforeImg);
+                        }
+                        if (oldData.afterImg && oldData.afterImg !== recordData.afterImg) {
+                            await deleteStorageImage(oldData.afterImg);
+                        }
+                    }
+
                     const docRef = doc(db, "checklists", window.editingId);
                     await updateDoc(docRef, recordData);
                     window.showToast('수정되었습니다.');
@@ -532,6 +555,7 @@
             }
         };
 
+        // 개별 문서 삭제 시 Firestore 문서와 연결된 Storage 이미지까지 함께 삭제하도록 보완
         window.deleteRecordFromFirestore = async function(docId) {
             const user = auth.currentUser;
             if(!user) return;
@@ -545,7 +569,17 @@
             }
 
             try {
-                await deleteDoc(doc(db, "checklists", docId));
+                // 삭제 전 문서 데이터를 조회하여 Storage 이미지 URL 추출
+                const docRef = doc(db, "checklists", docId);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.beforeImg) await deleteStorageImage(data.beforeImg);
+                    if (data.afterImg) await deleteStorageImage(data.afterImg);
+                }
+
+                await deleteDoc(docRef);
                 if(window.editingId === docId) window.resetForm();
                 window.showToast('삭제되었습니다.');
             } catch(err) {
@@ -554,6 +588,7 @@
             }
         };
 
+        // 다중 선택 삭제 시에도 각각의 Storage 이미지 파일들이 완벽하게 세트로 삭제되도록 보완
         window.deleteMultipleRecordsFromFirestore = async function(docIds) {
             const user = auth.currentUser;
             if(!user) return;
@@ -568,7 +603,16 @@
 
             try {
                 for (const docId of docIds) {
-                    await deleteDoc(doc(db, "checklists", docId));
+                    const docRef = doc(db, "checklists", docId);
+                    const docSnap = await getDoc(docRef);
+                    
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.beforeImg) await deleteStorageImage(data.beforeImg);
+                        if (data.afterImg) await deleteStorageImage(data.afterImg);
+                    }
+
+                    await deleteDoc(docRef);
                     if(window.editingId === docId) window.resetForm();
                 }
                 window.showToast(`${docIds.length}개 항목이 삭제되었습니다.`);
@@ -1038,7 +1082,7 @@
                 document.getElementById('beforeText').style.display = 'none';
             }
             if(row.afterImg) {
-                images.afterCell = row.afterImg;
+                images.afterImg = row.afterImg;
                 document.getElementById('afterImg').src = row.afterImg;
                 document.getElementById('afterImg').style.display = 'block';
                 document.getElementById('afterText').style.display = 'none';
