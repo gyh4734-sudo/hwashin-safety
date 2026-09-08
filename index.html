@@ -1,629 +1,4 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HWASHIN 예산공장 안전점검 통합 관리 System</title>
-    <!-- PPTX, XLSX 및 JSZip 외부 라이브러리 -->
-    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <style>
-        :root {
-            --primary-blue: #003882;
-            --header-blue: #002659;
-            --bg-gray: #f4f6f9;
-            --border-black: #111111;
-            --header-light-blue: #D6E4FF;
-            --label-gray: #F2F2F2;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background-color: var(--bg-gray); font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 20px; color: #333; }
-
-        /* 로그인 모달 스타일 */
-        .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            display: flex; justify-content: center; align-items: center; z-index: 10000;
-        }
-        .modal-box {
-            background: white; width: 360px; padding: 25px; border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
-        }
-        .modal-title { font-size: 16px; font-weight: bold; color: var(--primary-blue); margin-bottom: 15px; }
-        .modal-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
-        .modal-btn { width: 100%; padding: 10px; background: var(--primary-blue); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .modal-btn:hover { opacity: 0.9; }
-        .error-msg { color: #dc3545; font-size: 11px; margin-bottom: 10px; display: none; }
-
-        .app-header {
-            background-color: var(--primary-blue);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .user-info { font-size: 12px; display: flex; align-items: center; gap: 10px; }
-        .btn-logout { background: #002659; border: 1px solid #fff; color: white; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; }
-
-        .nav-tabs {
-            display: flex; gap: 10px; background: white; padding: 10px; border-radius: 6px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        .tab-btn {
-            padding: 10px 20px; border: none; background: #e9ecef; color: #495057; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s;
-        }
-
-        .tab-btn.active { background: var(--primary-blue); color: white; }
-
-        .main-container {
-            display: grid; grid-template-columns: 1020px 1fr; gap: 20px; align-items: start;
-        }
-
-        @media (max-width: 1600px) { .main-container { grid-template-columns: 1fr; } }
-
-        .card { background: white; padding: 20px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .card-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid var(--primary-blue); display: flex; justify-content: space-between; align-items: center; }
-
-        .filter-bar { display: flex; align-items: center; gap: 6px; background: #eef2f7; padding: 6px 12px; border-radius: 6px; border: 1px solid #dcdfe6; }
-        .filter-bar select, .filter-bar input { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; outline: none; }
-        .filter-nav-btn { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
-        .filter-nav-btn:hover { background: #e9ecef; }
-
-        .ppt-frame { width: 980px; height: 680px; background: white; border: 1px solid #ccc; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; position: relative; margin: 0 auto; }
-        .ppt-header-bar { background-color: var(--primary-blue); height: 46px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; color: white; }
-        .ppt-header-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: bold; }
-
-        .logo-container { display: flex; align-items: center; gap: 5px; font-weight: 900; font-size: 16px; letter-spacing: 1px; }
-        .logo-shape { width: 5px; height: 15px; background-color: white; transform: skewX(-20deg); }
-
-        .ppt-sub-header { padding: 8px 15px 4px 15px; }
-        .factory-badge { background-color: var(--primary-blue); color: white; padding: 3px 15px; font-size: 14px; font-weight: bold; display: inline-block; }
-
-        .ppt-main-content { padding: 0 15px 15px 15px; flex-grow: 1; display: flex; }
-        .ppt-table { width: 100%; height: 100%; border-collapse: collapse; border: 1px solid var(--border-black); table-layout: fixed; }
-        .ppt-table th, .ppt-table td { border: 1px solid var(--border-black); padding: 0; vertical-align: middle; font-size: 13px; }
-
-        .col-header { background-color: var(--header-light-blue); height: 30px; text-align: center; font-weight: bold; font-size: 15px; }
-        .image-cell { height: 380px; position: relative; background-color: #fafafa; text-align: center; cursor: pointer; }
-        .image-cell.focused { outline: 3px solid var(--primary-blue); outline-offset: -3px; }
-
-        .dropzone-text { color: #777; font-size: 13px; line-height: 1.6; }
-        .dropzone-text i { font-size: 32px; color: #aaa; margin-bottom: 8px; }
-        .dropzone-text .highlight { color: var(--primary-blue); font-weight: bold; }
-
-        .preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .image-controls { position: absolute; top: 5px; right: 5px; display: none; gap: 5px; z-index: 10; }
-        .image-cell:hover .image-controls { display: flex; }
-        .img-btn { background: rgba(0,0,0,0.6); color: white; border: none; width: 26px; height: 26px; border-radius: 3px; cursor: pointer; }
-
-        .label-cell { background-color: var(--label-gray); font-weight: bold; text-align: center; letter-spacing: 1px; }
-        .input-cell { padding: 3px 6px !important; }
-
-        .cell-input, .cell-textarea, .cell-select { width: 100%; height: 100%; border: none; outline: none; background: transparent; font-size: 13px; font-family: inherit; resize: none; }
-
-        .btn { padding: 8px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
-        .btn-primary { background: var(--primary-blue); color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn:hover { opacity: 0.9; }
-
-        .stats-matrix-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; margin-top: 5px; }
-        .stats-matrix-table th, .stats-matrix-table td { border: 1px solid #111; padding: 7px 4px; }
-        .stats-matrix-table th { background-color: #f2f2f2; font-weight: bold; }
-        .stats-matrix-table td:first-child { background-color: #f2f2f2; font-weight: bold; }
-
-        .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .data-table th, .data-table td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
-        .data-table th { background: #f2f2f2; }
-        .data-table tbody tr { cursor: pointer; transition: background 0.2s; }
-        .data-table tbody tr:hover { background-color: #e9ecef; }
-        .data-table tbody tr.selected-row { background-color: #d6e4ff; font-weight: bold; }
-
-        .sortable-header { cursor: pointer; user-select: none; }
-        .sortable-header:hover { background-color: #e2e6ea; }
-
-        .table-filter-select { width: 100%; font-size: 11px; padding: 2px 4px; border: 1px solid #aaa; border-radius: 3px; background: white; outline: none; font-weight: bold; }
-        .badge-status { padding: 2px 6px; border-radius: 3px; font-size: 10px; color: white; font-weight: bold; }
-        .bg-before { background-color: #dc3545; }
-        .bg-after { background-color: #28a745; }
-
-        /* 페이지네이션 UI 스타일 */
-        .pagination-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            margin-top: 15px;
-        }
-        .page-btn {
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 10px;
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .page-btn.active {
-            background: var(--primary-blue);
-            color: #fff;
-            border-color: var(--primary-blue);
-            font-weight: bold;
-        }
-        .page-btn:hover:not(.active) {
-            background: #e9ecef;
-        }
-
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 56, 130, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
-        .toast.show { opacity: 1; }
-    </style>
-</head>
-<body>
-
-    <!-- 1. 로그인 인증 모달 -->
-    <div id="loginModal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-title"><i class="fa-solid fa-shield-halved"></i> 안전 점검 시스템 로그인</div>
-            <form id="loginForm">
-                <input type="email" id="loginEmail" class="modal-input" placeholder="이메일 입력" required>
-                <input type="password" id="loginPassword" class="modal-input" placeholder="비밀번호 입력" required>
-                <div id="loginError" class="error-msg">이메일 또는 비밀번호가 일치하지 않습니다.</div>
-                <button type="submit" class="modal-btn">로그인</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- 헤더 영역 -->
-    <div class="app-header">
-        <h2>HWASHIN 예산공장 안전점검 통합 관리 System</h2>
-        <div class="user-info">
-            <span id="current-date"></span>
-            <span id="user-display" style="font-weight: bold;"></span>
-            <button id="btn-logout" class="btn-logout" style="display:none;">로그아웃</button>
-        </div>
-    </div>
-
-    <!-- 탭 메뉴 -->
-    <div class="nav-tabs">
-        <button class="tab-btn" onclick="switchCategory('노사합동점검')">노사합동점검</button>
-        <button class="tab-btn active" onclick="switchCategory('안전 브레인 스토밍')">안전 브레인 스토밍</button>
-        <button class="tab-btn" onclick="switchCategory('안전지킴이')">안전지킴이</button>
-        <button class="tab-btn" onclick="switchCategory('협의체점검')">협의체점검</button>
-    </div>
-
-    <!-- 스토리지 사용량 및 잔여 슬라이드 표시 바 (1GB 무료 기준) -->
-    <div class="card" style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 20px;">
-        <div>
-            <i class="fa-solid fa-database" style="color: var(--primary-blue);"></i> 
-            <b>DB 용량 (무료 1GB 기준):</b> 
-            <span id="storage-used-text">0 MB</span> 사용 중 (<span id="storage-percent">0%</span>)
-        </div>
-        <div style="font-weight: bold; color: var(--primary-blue);">
-            💡 잔여 예상 슬라이드: <span id="storage-remaining-slides">계산 중...</span>
-        </div>
-    </div>
-
-    <!-- 메인 레이아웃 -->
-    <div class="main-container">
-        <div>
-            <div class="card">
-                <div class="card-title">
-                    <span>
-                        <i class="fa-solid fa-pen-to-square"></i> 
-                        <span id="form-mode-title">점검 등록</span> (<span id="category-name-display">안전 브레인 스토밍</span>)
-                    </span>
-                    <div>
-                        <button id="btn-cancel-edit" class="btn btn-secondary" onclick="resetForm()" style="display:none;"><i class="fa-solid fa-rotate-left"></i> 신규 등록으로 전환</button>
-                        <button id="btn-save" class="btn btn-primary" onclick="saveRecord()"><i class="fa-solid fa-floppy-disk"></i> 저장하기</button>
-                    </div>
-                </div>
-
-                <div class="ppt-frame">
-                    <div class="ppt-header-bar">
-                        <div class="ppt-header-title">
-                            <span>➢</span>
-                            <span id="ppt-title-text">안전 브레인 스토밍</span>
-                        </div>
-                        <div class="logo-container">
-                            <div class="logo-shape"></div>
-                            <div class="logo-shape"></div>
-                            <div class="logo-shape"></div>
-                            <span>HWASHIN</span>
-                        </div>
-                    </div>
-
-                    <div class="ppt-sub-header">
-                        <div class="factory-badge" id="factory-seq-code">예산 공장-1</div>
-                    </div>
-
-                    <div class="ppt-main-content">
-                        <table class="ppt-table">
-                            <colgroup>
-                                <col style="width: 8%;"><col style="width: 22%;"><col style="width: 8%;"><col style="width: 12%;">
-                                <col style="width: 8%;"><col style="width: 22%;"><col style="width: 8%;"><col style="width: 12%;">
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th colspan="4" class="col-header">개선 전</th>
-                                    <th colspan="4" class="col-header">개선 후</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
-                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('beforeCell', event)"><i class="fa-solid fa-trash"></i></button></div>
-                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
-                                        <img id="beforeImg" class="preview-img" style="display:none;">
-                                        <input type="file" id="beforeInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
-                                    </td>
-                                    <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
-                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('afterCell', event)"><i class="fa-solid fa-trash"></i></button></div>
-                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
-                                        <img id="afterImg" class="preview-img" style="display:none;">
-                                        <input type="file" id="afterInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
-                                    </td>
-                                </tr>
-
-                                <tr style="height: 50px;">
-                                    <td class="label-cell">안 건</td>
-                                    <td colspan="3" class="input-cell"><textarea id="input-item" class="cell-textarea" placeholder="안건 내용 입력"></textarea></td>
-                                    <td class="label-cell">개선안</td>
-                                    <td colspan="3" class="input-cell"><textarea id="input-solution" class="cell-textarea" placeholder="개선안 내용 입력"></textarea></td>
-                                </tr>
-                                <tr style="height: 32px;">
-                                    <td class="label-cell">점검 구역</td>
-                                    <td class="input-cell"><input type="text" id="input-zone" class="cell-input" placeholder="구역 입력"></td>
-                                    <td class="label-cell">대 상</td>
-                                    <td class="input-cell">
-                                        <select id="input-target" class="cell-select">
-                                            <option value="생산팀">생산팀</option>
-                                            <option value="안전환경노무팀">안전환경노무팀</option>
-                                            <option value="생관물류팀">생관물류팀</option>
-                                            <option value="품질팀">품질팀</option>
-                                            <option value="HR다인">HR다인</option>
-                                        </select>
-                                    </td>
-                                    <td class="label-cell">조치 부서</td>
-                                    <td colspan="3" class="input-cell"><input type="text" id="input-dept" class="cell-input" placeholder="담당 부서 입력"></td>
-                                </tr>
-                                <tr style="height: 32px;">
-                                    <td class="label-cell">상태/행동</td>
-                                    <td class="input-cell">
-                                        <select id="input-type" class="cell-select">
-                                            <option value="불안전 상태">불안전 상태</option>
-                                            <option value="불안전 행동">불안전 행동</option>
-                                        </select>
-                                    </td>
-                                    <td class="label-cell">지도 일자</td>
-                                    <td class="input-cell"><input type="date" id="input-guide-date" class="cell-input" onchange="onGuideDateChange()"></td>
-                                    <td class="label-cell">계획 일자</td>
-                                    <td class="input-cell"><input type="date" id="input-plan-date" class="cell-input"></td>
-                                    <td class="label-cell">완료 일자</td>
-                                    <td class="input-cell"><input type="date" id="input-complete-date" class="cell-input"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div>
-            <div class="card" style="padding: 12px 20px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:bold; font-size:14px; color:var(--primary-blue);"><i class="fa-solid fa-calendar-days"></i> 기간 선택</span>
-                    <div class="filter-bar">
-                        <select id="filter-type" onchange="onFilterTypeChange()">
-                            <option value="all">전체보기</option>
-                            <option value="daily">일간</option>
-                            <option value="weekly">주간</option>
-                            <option value="monthly" selected>월간</option>
-                            <option value="yearly">연간</option>
-                        </select>
-                        <button class="filter-nav-btn" onclick="navigateDate(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-                        <span id="picker-container"></span>
-                        <button class="filter-nav-btn" onclick="navigateDate(1)"><i class="fa-solid fa-chevron-right"></i></button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    <span><i class="fa-solid fa-table"></i> 팀별 점검 통계 현황</span>
-                </div>
-                <table class="stats-matrix-table">
-                    <thead>
-                        <tr>
-                            <th id="matrix-period-label">기간</th>
-                            <th>생산팀</th>
-                            <th>안전환경노무팀</th>
-                            <th>생관물류팀</th>
-                            <th>품질팀</th>
-                            <th>HR다인</th>
-                            <th>총합</th>
-                        </tr>
-                    </thead>
-                    <tbody id="matrix-body">
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- 조회 점검목록 카드 -->
-            <div class="card">
-                <div class="card-title">
-                    <div><i class="fa-solid fa-list"></i> <span>조회 점검목록</span></div>
-                    <div style="display:flex; gap: 5px;">
-                        <input type="file" id="ppt-import-input" accept=".pptx" style="display:none;" onchange="handlePPTImport(event)">
-                        <button class="btn btn-warning" onclick="document.getElementById('ppt-import-input').click()"><i class="fa-solid fa-file-import"></i> PPT 불러오기</button>
-                        <button class="btn btn-danger" onclick="deleteSelectedRecords()"><i class="fa-solid fa-trash"></i> 선택 삭제</button>
-                        <button class="btn btn-success" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
-                        <button class="btn btn-secondary" onclick="exportToPPT()"><i class="fa-solid fa-file-powerpoint"></i> PPT</button>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="data-table">
-                        <colgroup>
-                            <col style="width: 5%;">
-                            <col style="width: 5%;">
-                            <col style="width: 10%;">
-                            <col style="width: 13%;">
-                            <col style="width: 12%;">
-                            <col style="width: 12%;">
-                            <col style="width: 23%;">
-                            <col style="width: 12%;">
-                            <col style="width: 8%;">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th><input type="checkbox" id="check-all" onchange="toggleSelectAll(this)" style="cursor:pointer;"></th>
-                                <th>번호</th>
-                                <th><select id="col-filter-status" class="table-filter-select" onchange="refreshDataView()"><option value="all">구분(전체)</option><option value="before">개선전</option><option value="after">개선후</option></select></th>
-                                <th><select id="col-filter-type" class="table-filter-select" onchange="refreshDataView()"><option value="all">상태(전체)</option><option value="불안전 상태">불안전 상태</option><option value="불안전 행동">불안전 행동</option></select></th>
-                                <th><select id="col-filter-target" class="table-filter-select" onchange="refreshDataView()"><option value="all">대상(전체)</option><option value="생산팀">생산팀</option><option value="안전환경노무팀">안전환경노무팀</option><option value="생관물류팀">생관물류팀</option><option value="품질팀">품질팀</option><option value="HR다인">HR다인</option></select></th>
-                                <th>점검구역</th>
-                                <th>안건</th>
-                                <th class="sortable-header" onclick="toggleDateSort()">지도일자 <span id="sort-icon">▲</span></th>
-                                <th>삭제</th>
-                            </tr>
-                        </thead>
-                        <tbody id="data-list-body"></tbody>
-                    </table>
-                </div>
-                <!-- 페이지네이션 컨트롤러 영역 -->
-                <div id="pagination-container" class="pagination-container"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="toast" class="toast">메시지</div>
-
-    <!-- Firebase SDK 모듈 스크립트 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCVOMvYND3W-znSwwYr63aGLRQEOYG203c",
-            authDomain: "hwashin-safety.firebaseapp.com",
-            projectId: "hwashin-safety",
-            storageBucket: "hwashin-safety.firebasestorage.app",
-            messagingSenderId: "925751971876",
-            appId: "1:925751971876:web:57cb605106c4973e4688b1",
-            measurementId: "G-VBZF0P12B5"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
-
-        const DELETE_MASTER_KEY = "hwashin1234!";
-
-        window.dbData = [];
-        window.firebaseAuth = auth;
-        window.firebaseDb = db;
-
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const pw = document.getElementById('loginPassword').value;
-            try {
-                await setPersistence(auth, browserSessionPersistence);
-                await signInWithEmailAndPassword(auth, email.trim(), pw);
-                document.getElementById('loginError').style.display = 'none';
-            } catch (err) {
-                document.getElementById('loginError').style.display = 'block';
-            }
-        });
-
-        document.getElementById('btn-logout').addEventListener('click', () => signOut(auth));
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('loginModal').style.display = 'none';
-                document.getElementById('user-display').innerText = `접속 계정: ${user.email}`;
-                document.getElementById('btn-logout').style.display = 'inline-block';
-                subscribeFirestore();
-            } else {
-                document.getElementById('loginModal').style.display = 'flex';
-                document.getElementById('user-display').innerText = '';
-                document.getElementById('btn-logout').style.display = 'none';
-                window.dbData = [];
-                if (window.refreshDataView) window.refreshDataView();
-            }
-        });
-
-        function subscribeFirestore() {
-            const q = query(collection(db, "checklists"), orderBy("createdAt", "desc"));
-            onSnapshot(q, (snapshot) => {
-                window.dbData = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                if (window.updateCategoryUI) window.updateCategoryUI();
-            });
-        }
-
-        async function uploadImageToStorage(dataUrl, prefix) {
-            if (!dataUrl || !dataUrl.startsWith('data:image')) return dataUrl || '';
-            if (dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) return dataUrl;
-
-            const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.jpg`;
-            const storageRef = ref(storage, `images/${fileName}`);
-            const snapshot = await uploadString(storageRef, dataUrl, 'data_url');
-            return await getDownloadURL(snapshot.ref);
-        }
-
-        // Storage에 저장된 이미지 URL을 기반으로 파일 삭제 수행 헬퍼 함수
-        async function deleteStorageImage(imageUrl) {
-            if (!imageUrl || typeof imageUrl !== 'string' || !imageUrl.includes('firebasestorage.googleapis.com')) return;
-            try {
-                const imageRef = ref(storage, imageUrl);
-                await deleteObject(imageRef);
-            } catch (err) {
-                console.log("이미지 파일 삭제 중 이미 없거나 경로 오류 발생:", err);
-            }
-        }
-
-        window.saveRecordToFirestore = async function(recordData) {
-            try {
-                window.showToast('이미지 업로드 및 저장 중...');
-
-                if (recordData.beforeImg) {
-                    recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
-                }
-                if (recordData.afterImg) {
-                    recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
-                }
-
-                if (window.editingId) {
-                    // 수정 시 기존 이미지와 달라졌다면 이전 스토리지 이미지 정리 지원
-                    const oldDocSnap = await getDoc(doc(db, "checklists", window.editingId));
-                    if (oldDocSnap.exists()) {
-                        const oldData = oldDocSnap.data();
-                        if (oldData.beforeImg && oldData.beforeImg !== recordData.beforeImg) {
-                            await deleteStorageImage(oldData.beforeImg);
-                        }
-                        if (oldData.afterImg && oldData.afterImg !== recordData.afterImg) {
-                            await deleteStorageImage(oldData.afterImg);
-                        }
-                    }
-
-                    const docRef = doc(db, "checklists", window.editingId);
-                    await updateDoc(docRef, recordData);
-                    window.showToast('수정되었습니다.');
-                } else {
-                    recordData.createdAt = serverTimestamp();
-                    await addDoc(collection(db, "checklists"), recordData);
-                    window.showToast('저장되었습니다.');
-                }
-                window.resetForm();
-            } catch (err) {
-                console.error("저장 오류:", err);
-                alert('데이터 저장 중 오류가 발생했습니다: ' + err.message);
-            }
-        };
-
-        window.batchSaveToFirestore = async function(recordsArray) {
-            try {
-                window.showToast('이미지 업로드 및 데이터 복원 중...');
-                for (let recordData of recordsArray) {
-                    if (recordData.beforeImg) {
-                        recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
-                    }
-                    if (recordData.afterImg) {
-                        recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
-                    }
-                    recordData.createdAt = serverTimestamp();
-                    await addDoc(collection(db, "checklists"), recordData);
-                }
-                window.showToast(`${recordsArray.length}건의 실적이 성공적으로 복원/저장되었습니다.`);
-                window.resetForm();
-            } catch (err) {
-                console.error("일괄 저장 오류:", err);
-                alert('일괄 저장 중 오류가 발생했습니다: ' + err.message);
-            }
-        };
-
-        // 개별 문서 삭제 시 Firestore 문서와 연결된 Storage 이미지까지 함께 삭제하도록 보완
-        window.deleteRecordFromFirestore = async function(docId) {
-            const user = auth.currentUser;
-            if(!user) return;
-
-            const inputKey = prompt("삭제 권한 확인을 위해 삭제 전용 마스터 비밀번호를 입력해 주세요.");
-            if(!inputKey) return;
-
-            if (inputKey.trim() !== DELETE_MASTER_KEY) {
-                alert("삭제 마스터 비밀번호가 일치하지 않습니다.");
-                return;
-            }
-
-            try {
-                // 삭제 전 문서 데이터를 조회하여 Storage 이미지 URL 추출
-                const docRef = doc(db, "checklists", docId);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    if (data.beforeImg) await deleteStorageImage(data.beforeImg);
-                    if (data.afterImg) await deleteStorageImage(data.afterImg);
-                }
-
-                await deleteDoc(docRef);
-                if(window.editingId === docId) window.resetForm();
-                window.showToast('삭제되었습니다.');
-            } catch(err) {
-                console.error("삭제 오류:", err);
-                alert('삭제 처리 중 오류가 발생했습니다: ' + err.message);
-            }
-        };
-
-        // 다중 선택 삭제 시에도 각각의 Storage 이미지 파일들이 완벽하게 세트로 삭제되도록 보완
-        window.deleteMultipleRecordsFromFirestore = async function(docIds) {
-            const user = auth.currentUser;
-            if(!user) return;
-
-            const inputKey = prompt(`선택한 ${docIds.length}개 항목을 삭제합니다. 삭제 전용 마스터 비밀번호를 입력해 주세요.`);
-            if(!inputKey) return;
-
-            if (inputKey.trim() !== DELETE_MASTER_KEY) {
-                alert("삭제 마스터 비밀번호가 일치하지 않습니다.");
-                return;
-            }
-
-            try {
-                for (const docId of docIds) {
-                    const docRef = doc(db, "checklists", docId);
-                    const docSnap = await getDoc(docRef);
-                    
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        if (data.beforeImg) await deleteStorageImage(data.beforeImg);
-                        if (data.afterImg) await deleteStorageImage(data.afterImg);
-                    }
-
-                    await deleteDoc(docRef);
-                    if(window.editingId === docId) window.resetForm();
-                }
-                window.showToast(`${docIds.length}개 항목이 삭제되었습니다.`);
-            } catch(err) {
-                console.error("일괄 삭제 오류:", err);
-                alert('삭제 처리 중 오류가 발생했습니다: ' + err.message);
-            }
-        };
-    </script>
-
-    <!-- UI 및 메인 로직 스크립트 (페이징 및 선택 고유 ID Set 적용 완료) -->
+<!-- UI 및 메인 로직 스크립트 (페이징, 선택 고유 ID Set 및 공통 헬퍼 함수 반영 완료) -->
     <script>
         const TARGET_TEAMS = ['생산팀', '안전환경노무팀', '생관물류팀', '품질팀', 'HR다인'];
         let currentCategory = '안전 브레인 스토밍';
@@ -685,7 +60,17 @@
             initFilterPicker(); refreshDataView();
         }
 
-        function onGuideDateChange() { updateHeaderDate(); }
+        function onGuideDateChange() { 
+            updateHeaderDate(); 
+            // 신규 등록 상태일 때만 지도일자에 맞춰 자동 시퀀스 번호(예: 예산 공장-N) 갱신
+            if (!editingId) {
+                const guideDateVal = document.getElementById('input-guide-date').value || new Date().toISOString().substring(0, 10);
+                const db = window.dbData || [];
+                const count = db.filter(d => d.category === currentCategory && d.guideDate === guideDateVal).length;
+                document.getElementById('factory-seq-code').innerText = `예산 공장-${count + 1}`;
+            }
+        }
+
         function updateHeaderDate() {
             const gVal = document.getElementById('input-guide-date').value;
             let fDate = '';
@@ -771,11 +156,13 @@
             return !!(row && row.afterImg && String(row.afterImg).trim() !== '');
         }
 
-        function refreshDataView() {
+        // [요청 반영 2]: 필터 및 정렬이 적용된 목록을 공통으로 가져오는 헬퍼 함수 추가
+        function getFilteredAndSortedData() {
             const pList = getPeriodFilteredData();
-            renderMatrixStats(pList);
             let fList = pList;
-            const sF = document.getElementById('col-filter-status').value, tF = document.getElementById('col-filter-type').value, tgF = document.getElementById('col-filter-target').value;
+            const sF = document.getElementById('col-filter-status').value;
+            const tF = document.getElementById('col-filter-type').value;
+            const tgF = document.getElementById('col-filter-target').value;
             
             if(sF !== 'all') fList = fList.filter(i => sF === 'after' ? hasAfterImage(i) : !hasAfterImage(i));
             if(tF !== 'all') fList = fList.filter(i => i.type === tF);
@@ -787,6 +174,14 @@
                 return isDateAscending ? dateA - dateB : dateB - dateA;
             });
 
+            return fList;
+        }
+
+        // [요청 반영 3]: refreshDataView 함수 내부 변경 (공통 헬퍼 함수 활용)
+        function refreshDataView() {
+            const pList = getPeriodFilteredData();
+            renderMatrixStats(pList);
+            const fList = getFilteredAndSortedData();
             renderListWithPagination(fList);
         }
 
@@ -863,7 +258,6 @@
 
             if (totalPages <= 1) return;
 
-            // 이전 페이지 버튼
             const prevBtn = document.createElement('button');
             prevBtn.className = 'page-btn';
             prevBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
@@ -876,7 +270,6 @@
             };
             container.appendChild(prevBtn);
 
-            // 페이지 번호 버튼들
             for (let i = 1; i <= totalPages; i++) {
                 const pageBtn = document.createElement('button');
                 pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
@@ -888,7 +281,6 @@
                 container.appendChild(pageBtn);
             }
 
-            // 다음 페이지 버튼
             const nextBtn = document.createElement('button');
             nextBtn.className = 'page-btn';
             nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
@@ -902,7 +294,6 @@
             container.appendChild(nextBtn);
         }
 
-        // 개별 체크박스 변경 시 Set에 반영
         function toggleRowSelection(checkbox) {
             const id = checkbox.value;
             if (checkbox.checked) {
@@ -913,7 +304,6 @@
             updateMasterCheckboxStateFromDOM();
         }
 
-        // 현재 페이지의 전체 선택 제어 (현재 보이는 목록 기준)
         function toggleSelectAll(master) {
             const checkboxes = document.querySelectorAll('.row-checkbox');
             checkboxes.forEach(cb => {
@@ -946,7 +336,6 @@
         }
 
         function deleteSelectedRecords() {
-            // Set에 저장된 전체 선택 ID들을 기반으로 일괄 삭제 수행
             const selectedIdsArray = Array.from(selectedIds);
             if (selectedIdsArray.length === 0) {
                 alert('삭제할 항목을 선택해 주세요.');
@@ -955,7 +344,7 @@
 
             if (window.deleteMultipleRecordsFromFirestore) {
                 window.deleteMultipleRecordsFromFirestore(selectedIdsArray).then(() => {
-                    selectedIds.clear(); // 삭제 후 선택 목록 초기화
+                    selectedIds.clear();
                 });
             }
         }
@@ -1054,10 +443,12 @@
             }
         }
 
+        // [요청 반영 1]: loadRecordForEdit 함수 수정 (현재 필터/정렬 조건이 적용된 목록 기준인 getFilteredAndSortedData를 사용해 올바른 레코드 탐색)
         function loadRecordForEdit(id) {
-            const db = window.dbData || [];
-            const row = db.find(d => d.id === id);
+            const fList = getFilteredAndSortedData();
+            const row = fList.find(d => d.id === id);
             if(!row) return;
+
             editingId = row.id;
             window.editingId = row.id;
             document.getElementById('form-mode-title').innerText = '점검 수정';
@@ -1121,23 +512,7 @@
         }
 
         function getTargetExportData() {
-            const periodList = getPeriodFilteredData();
-            
-            const sF = document.getElementById('col-filter-status').value, 
-                  tF = document.getElementById('col-filter-type').value, 
-                  tgF = document.getElementById('col-filter-target').value;
-            
-            let filteredList = periodList;
-            if(sF !== 'all') filteredList = filteredList.filter(i => sF === 'after' ? hasAfterImage(i) : !hasAfterImage(i));
-            if(tF !== 'all') filteredList = filteredList.filter(i => i.type === tF);
-            if(tgF !== 'all') filteredList = filteredList.filter(i => i.target === tgF);
-
-            filteredList.sort((a,b) => {
-                const dateA = a.guideDate ? new Date(a.guideDate) : new Date(0);
-                const dateB = b.guideDate ? new Date(b.guideDate) : new Date(0);
-                return isDateAscending ? dateA - dateB : dateB - dateA;
-            });
-
+            const filteredList = getFilteredAndSortedData();
             if (selectedIds.size > 0) {
                 return filteredList.filter(item => selectedIds.has(item.id));
             }
@@ -1455,5 +830,3 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
     </script>
-</body>
-</html>
