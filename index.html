@@ -446,14 +446,16 @@
         // [요청 반영 1]: loadRecordForEdit 함수 수정 (현재 필터/정렬 조건이 적용된 목록 기준인 getFilteredAndSortedData를 사용해 올바른 레코드 탐색)
         function loadRecordForEdit(id) {
             const fList = getFilteredAndSortedData();
-            const row = fList.find(d => d.id === id);
-            if(!row) return;
+            const rowIndex = fList.findIndex(d => d.id === id);
+            if(rowIndex === -1) return;
+            const row = fList[rowIndex];
 
             editingId = row.id;
             window.editingId = row.id;
             document.getElementById('form-mode-title').innerText = '점검 수정';
             document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
-            document.getElementById('factory-seq-code').innerText = row.seqCode || '예산 공장-1';
+            // 저장된 seqCode가 아니라, 현재 기간/정렬 조건에서의 조회점검목록 번호(rowIndex+1)를 그대로 표시
+            document.getElementById('factory-seq-code').innerText = `예산 공장-${rowIndex + 1}`;
             
             document.getElementById('input-item').value = row.item || '';
             document.getElementById('input-solution').value = row.solution || '';
@@ -529,7 +531,7 @@
                 '번호': idx + 1,
                 '구분': hasAfterImage(item) ? '개선후' : '개선전',
                 '점검분류': item.category,
-                '공장식별': item.seqCode,
+                '공장식별': `예산 공장-${idx + 1}`,
                 '상태/행동': item.type,
                 '대상팀': item.target,
                 '점검구역': item.zone,
@@ -559,7 +561,7 @@
                 pptx.defineLayout({ name: 'STANDARD_4_3', width: 10.0, height: 7.5 });
                 pptx.layout = 'STANDARD_4_3';
 
-                exportList.forEach(item => {
+                exportList.forEach((item, exportIdx) => {
                     let slide = pptx.addSlide();
                     let fDate = item.guideDate ? `(${item.guideDate.substring(2).replace(/-/g,'.')})` : '';
 
@@ -568,7 +570,7 @@
                     slide.addText('HWASHIN', { x: 7.5, y: 0.1, w: 2.3, h: 0.35, fontSize: 14, bold: true, color: 'FFFFFF', align: 'right' });
 
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 0.65, w: 1.3, h: 0.28, fill: { color: '003882' }, line: { color: '003882' } });
-                    slide.addText(item.seqCode || '예산 공장-1', { x: 0.2, y: 0.65, w: 1.3, h: 0.28, fontSize: 10, bold: true, color: 'FFFFFF', align: 'center' });
+                    slide.addText(`예산 공장-${exportIdx + 1}`, { x: 0.2, y: 0.65, w: 1.3, h: 0.28, fontSize: 10, bold: true, color: 'FFFFFF', align: 'center' });
 
                     slide.addTable([
                         [
