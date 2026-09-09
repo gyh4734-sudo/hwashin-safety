@@ -259,14 +259,20 @@
                             <tbody>
                                 <tr>
                                     <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
-                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('beforeCell', event)"><i class="fa-solid fa-trash"></i></button></div>
-                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
+                                        <div class="image-controls">
+                                            <button class="img-btn" title="파일 직접 찾기" onclick="document.getElementById('beforeInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i></button>
+                                            <button class="img-btn" title="이미지 삭제" onclick="clearImg('beforeCell', event)"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역을 선택 후<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
                                         <img id="beforeImg" class="preview-img" style="display:none;">
                                         <input type="file" id="beforeInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
                                     </td>
                                     <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
-                                        <div class="image-controls"><button class="img-btn" onclick="clearImg('afterCell', event)"><i class="fa-solid fa-trash"></i></button></div>
-                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>클릭 사진 첨부 또는<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
+                                        <div class="image-controls">
+                                            <button class="img-btn" title="파일 직접 찾기" onclick="document.getElementById('afterInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i></button>
+                                            <button class="img-btn" title="이미지 삭제" onclick="clearImg('afterCell', event)"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역을 선택 후<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
                                         <img id="afterImg" class="preview-img" style="display:none;">
                                         <input type="file" id="afterInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
                                     </td>
@@ -960,13 +966,6 @@
             document.getElementById(id).classList.add('focused'); 
         }
 
-        document.getElementById('beforeCell').addEventListener('click', (e) => { 
-            if(!e.target.closest('.image-controls') && !images.beforeCell) document.getElementById('beforeInput').click(); 
-        });
-        document.getElementById('afterCell').addEventListener('click', (e) => { 
-            if(!e.target.closest('.image-controls') && !images.afterCell) document.getElementById('afterInput').click(); 
-        });
-
         function handleFileSelect(e, id) { const f = e.target.files[0]; if(f) renderImg(f, id); }
 
         document.addEventListener('paste', (e) => {
@@ -1026,7 +1025,6 @@
 
             const db = window.dbData || [];
             
-            // 수정 모드일 때 사용자가 새 사진을 등록하지 않았다면(images에 빈 값이지만 원본 행에 이미지가 있는 경우) 기존 이미지를 유지
             let existingRow = editingId ? db.find(d => d.id === editingId) : null;
             let finalBeforeImg = images.beforeCell !== '' ? images.beforeCell : (existingRow ? existingRow.beforeImg : '');
             let finalAfterImg = images.afterCell !== '' ? images.afterCell : (existingRow ? existingRow.afterImg : '');
@@ -1062,7 +1060,6 @@
             document.getElementById('form-mode-title').innerText = '점검 수정';
             document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
             
-            // 현재 필터/정렬이 적용된 목록에서의 실제 위치(순번)를 찾아 '예산 공장-N'으로 표시
             const fList = getFilteredAndSortedData();
             const index = fList.findIndex(item => item.id === id);
             if (index !== -1) {
@@ -1083,7 +1080,6 @@
 
             clearImg('beforeCell'); clearImg('afterCell');
             
-            // 수정 창에 불러올 때 이미지 상태 및 UI 반영
             if(row.beforeImg) {
                 images.beforeCell = row.beforeImg;
                 document.getElementById('beforeImg').src = row.beforeImg;
