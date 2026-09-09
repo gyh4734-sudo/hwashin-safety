@@ -1025,6 +1025,12 @@
             if(!itemVal) { alert('안건 내용을 입력해주세요.'); return; }
 
             const db = window.dbData || [];
+            
+            // 수정 모드일 때 사용자가 새 사진을 등록하지 않았다면(images에 빈 값이지만 원본 행에 이미지가 있는 경우) 기존 이미지를 유지
+            let existingRow = editingId ? db.find(d => d.id === editingId) : null;
+            let finalBeforeImg = images.beforeCell !== '' ? images.beforeCell : (existingRow ? existingRow.beforeImg : '');
+            let finalAfterImg = images.afterCell !== '' ? images.afterCell : (existingRow ? existingRow.afterImg : '');
+
             const recordData = {
                 category: currentCategory,
                 seqCode: document.getElementById('factory-seq-code').innerText,
@@ -1037,9 +1043,9 @@
                 guideDate: document.getElementById('input-guide-date').value,
                 planDate: document.getElementById('input-plan-date').value,
                 completeDate: document.getElementById('input-complete-date').value,
-                beforeImg: images.beforeCell,
-                afterImg: images.afterCell,
-                regDate: editingId ? (db.find(d => d.id === editingId)?.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
+                beforeImg: finalBeforeImg,
+                afterImg: finalAfterImg,
+                regDate: existingRow ? (existingRow.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
             };
 
             if (window.saveRecordToFirestore) {
@@ -1076,6 +1082,8 @@
             document.getElementById('input-complete-date').value = row.completeDate || '';
 
             clearImg('beforeCell'); clearImg('afterCell');
+            
+            // 수정 창에 불러올 때 이미지 상태 및 UI 반영
             if(row.beforeImg) {
                 images.beforeCell = row.beforeImg;
                 document.getElementById('beforeImg').src = row.beforeImg;
@@ -1083,7 +1091,7 @@
                 document.getElementById('beforeText').style.display = 'none';
             }
             if(row.afterImg) {
-                images.afterImg = row.afterImg;
+                images.afterCell = row.afterImg;
                 document.getElementById('afterImg').src = row.afterImg;
                 document.getElementById('afterImg').style.display = 'block';
                 document.getElementById('afterText').style.display = 'none';
