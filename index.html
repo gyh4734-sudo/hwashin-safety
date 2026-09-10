@@ -23,18 +23,34 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-gray); font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 20px; color: #333; }
 
-        /* 로그인 모달 스타일 */
+        /* 로그인 모달 스타일 (용접/조립 현장 배경 및 Hwashin 로고 결합) */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            position: fixed; inset: 0; 
+            background: linear-gradient(rgba(0, 38, 89, 0.75), rgba(0, 20, 50, 0.85)), url('data:image/jpeg;base64,...') center/cover no-repeat;
+            background-color: rgba(0,0,0,0.75);
             display: flex; justify-content: center; align-items: center; z-index: 10000;
         }
         .modal-box {
-            background: white; width: 360px; padding: 25px; border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px);
+            width: 380px; padding: 30px; border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5); text-align: center;
+            border: 1px solid rgba(255,255,255,0.2);
         }
-        .modal-title { font-size: 16px; font-weight: bold; color: var(--primary-blue); margin-bottom: 15px; }
-        .modal-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
-        .modal-btn { width: 100%; padding: 10px; background: var(--primary-blue); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .modal-logo-area {
+            display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 20px;
+        }
+        .modal-logo-icon {
+            display: flex; gap: 3px; align-items: center;
+        }
+        .modal-logo-shape {
+            width: 4px; height: 16px; background-color: var(--primary-blue); transform: skewX(-20deg);
+        }
+        .modal-logo-text {
+            font-size: 22px; font-weight: 900; color: var(--primary-blue); letter-spacing: 1px;
+        }
+        .modal-title { font-size: 14px; font-weight: bold; color: #555; margin-bottom: 20px; }
+        .modal-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
+        .modal-btn { width: 100%; padding: 12px; background: var(--primary-blue); color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; transition: opacity 0.2s; }
         .modal-btn:hover { opacity: 0.9; }
         .error-msg { color: #dc3545; font-size: 11px; margin-bottom: 10px; display: none; }
 
@@ -136,7 +152,6 @@
         .bg-before { background-color: #dc3545; }
         .bg-after { background-color: #28a745; }
 
-        /* 페이지네이션 UI 스타일 */
         .pagination-container {
             display: flex;
             justify-content: center;
@@ -168,15 +183,23 @@
 </head>
 <body>
 
-    <!-- 1. 로그인 인증 모달 -->
+    <!-- 1. 로그인 인증 모달 (3번째 사진 로고 + 2번째 사진 공장 배경 반영) -->
     <div id="loginModal" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title"><i class="fa-solid fa-shield-halved"></i> 안전 점검 시스템 로그인</div>
+            <div class="modal-logo-area">
+                <div class="modal-logo-icon">
+                    <div class="modal-logo-shape"></div>
+                    <div class="modal-logo-shape"></div>
+                    <div class="modal-logo-shape"></div>
+                </div>
+                <div class="modal-logo-text">HWASHIN</div>
+            </div>
+            <div class="modal-title"><i class="fa-solid fa-shield-halved"></i> 예산공장 안전점검 통합 관리 System</div>
             <form id="loginForm">
-                <input type="email" id="loginEmail" class="modal-input" placeholder="이메일 입력" required>
+                <input type="email" id="loginEmail" class="modal-input" placeholder="사내 이메일 입력" required>
                 <input type="password" id="loginPassword" class="modal-input" placeholder="비밀번호 입력" required>
                 <div id="loginError" class="error-msg">이메일 또는 비밀번호가 일치하지 않습니다.</div>
-                <button type="submit" class="modal-btn">로그인</button>
+                <button type="submit" class="modal-btn">시스템 로그인</button>
             </form>
         </div>
     </div>
