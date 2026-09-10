@@ -23,11 +23,10 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-gray); font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 20px; color: #333; }
 
-        /* 로그인 모달 스타일 (용접/조립 현장 배경 및 Hwashin 로고 결합) */
+        /* 로그인 모달 스타일 (오류가 나던 background 코드에서 잘못된 점 생략 부분을 깔끔한 그라데이션으로 수정 완료) */
         .modal-overlay {
             position: fixed; inset: 0; 
-            background: linear-gradient(rgba(0, 38, 89, 0.75), rgba(0, 20, 50, 0.85)), url('data:image/jpeg;base64,...') center/cover no-repeat;
-            background-color: rgba(0,0,0,0.75);
+            background: linear-gradient(rgba(0, 38, 89, 0.85), rgba(0, 20, 50, 0.95));
             display: flex; justify-content: center; align-items: center; z-index: 10000;
         }
         .modal-box {
@@ -183,7 +182,7 @@
 </head>
 <body>
 
-    <!-- 1. 로그인 인증 모달 (3번째 사진 로고 + 2번째 사진 공장 배경 반영) -->
+    <!-- 1. 로그인 인증 모달 -->
     <div id="loginModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-logo-area">
