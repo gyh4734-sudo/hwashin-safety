@@ -107,7 +107,7 @@
 
         .col-header { background-color: var(--header-light-blue); height: 30px; text-align: center; font-weight: bold; font-size: 15px; }
         
-        /* 다중 이미지 셀 영역 디자인 */
+        /* 동적 이미지 그리드 영역 스타일 */
         .image-cell { height: 380px; position: relative; background-color: #fafafa; padding: 5px; vertical-align: top; }
         .image-cell.focused { outline: 3px solid var(--primary-blue); outline-offset: -3px; }
         
@@ -115,12 +115,32 @@
             width: 100%;
             height: 315px;
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(2, 1fr);
             gap: 4px;
             margin-bottom: 5px;
             overflow-y: auto;
+            align-content: center;
+            justify-content: center;
         }
+        
+        /* 사진 개수에 따른 동적 그리드 클래스 */
+        .image-grid-container.count-1 {
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+        }
+        .image-grid-container.count-2 {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: 1fr;
+        }
+        .image-grid-container.count-3,
+        .image-grid-container.count-4 {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+        }
+        .image-grid-container.count-over {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(auto-fill, minmax(140px, 1fr));
+        }
+
         .image-item-box {
             position: relative;
             background: #eee;
@@ -130,7 +150,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 140px;
+            width: 100%;
+            height: 100%;
         }
         .image-item-box img {
             width: 100%;
@@ -339,9 +360,9 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <!-- 개선 전 다중 이미지 영역 -->
+                                    <!-- 개선 전 동적 이미지 영역 -->
                                     <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
-                                        <div id="beforeGrid" class="image-grid-container"></div>
+                                        <div id="beforeGrid" class="image-grid-container count-1"></div>
                                         <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
                                         <div class="image-cell-bottom-bar">
                                             <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
@@ -350,9 +371,9 @@
                                         <input type="file" id="beforeInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
                                     </td>
                                     
-                                    <!-- 개선 후 다중 이미지 영역 -->
+                                    <!-- 개선 후 동적 이미지 영역 -->
                                     <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
-                                        <div id="afterGrid" class="image-grid-container"></div>
+                                        <div id="afterGrid" class="image-grid-container count-1"></div>
                                         <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
                                         <div class="image-cell-bottom-bar">
                                             <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
@@ -584,7 +605,6 @@
             }
         }
 
-        // 다중 이미지 배열 처리용 스토리지 업로드 헬퍼
         async function processImagesArrayForUpload(imgArray, prefix) {
             const uploadedUrls = [];
             for (let img of imgArray) {
@@ -592,7 +612,7 @@
                     const url = await uploadImageToStorage(img, prefix);
                     uploadedUrls.push(url);
                 } else {
-                    uploadedUrls.push(img); // 이미 업로드된 URL인 경우
+                    uploadedUrls.push(img);
                 }
             }
             return uploadedUrls;
@@ -602,11 +622,9 @@
             try {
                 window.showToast('이미지 업로드 및 저장 중...');
 
-                // 배열 단위로 이미지 업로드 처리 (다중 이미지 지원)
                 recordData.beforeImgs = await processImagesArrayForUpload(recordData.beforeImgs, 'before');
                 recordData.afterImgs = await processImagesArrayForUpload(recordData.afterImgs, 'after');
 
-                // 하위 호환성을 위해 단일 필드도 첫 번째 이미지로 동기화
                 recordData.beforeImg = recordData.beforeImgs[0] || '';
                 recordData.afterImg = recordData.afterImgs[0] || '';
 
@@ -615,7 +633,6 @@
                     if (oldDocSnap.exists()) {
                         const oldData = oldDocSnap.data();
                         
-                        // 이전 이미지들 중 이번에 포함되지 않은 파일들은 스토리지에서 삭제 정돈
                         const oldBeforeList = oldData.beforeImgs || (oldData.beforeImg ? [oldData.beforeImg] : []);
                         for (let oldImg of oldBeforeList) {
                             if (!recordData.beforeImgs.includes(oldImg)) {
@@ -744,7 +761,6 @@
         let selectedCell = 'beforeCell';
         let editingId = null;
         
-        // 다중 이미지 배열 관리를 위한 객체 (최대 수 제한 없이 추가 가능하도록 확장)
         let imagesObj = { beforeCell: [], afterCell: [] };
 
         let currentFilterDate = new Date();
@@ -1093,7 +1109,7 @@
             for (let f of files) {
                 await appendImg(f, id);
             }
-            e.target.value = ''; // 초기화하여 동일 파일 재선택 가능하게 함
+            e.target.value = '';
         }
 
         document.addEventListener('paste', async (e) => {
@@ -1140,18 +1156,27 @@
             renderImageGrid(cellId);
         }
 
+        /* 사진 개수별 동적 그리드 클래스 적용 함수 */
         function renderImageGrid(cellId) {
             const isBefore = (cellId === 'beforeCell');
             const gridId = isBefore ? 'beforeGrid' : 'afterGrid';
             const textId = isBefore ? 'beforeText' : 'afterText';
-            const inputId = isBefore ? 'beforeInput' : 'afterInput';
             
             const gridEl = document.getElementById(gridId);
             const textEl = document.getElementById(textId);
             const list = imagesObj[cellId];
 
             gridEl.innerHTML = '';
-            if (list.length === 0) {
+            
+            // 기존 그리드 개수 클래스 초기화 후 동적 부여
+            gridEl.className = 'image-grid-container';
+            const count = list.length;
+            if (count === 1) gridEl.classList.add('count-1');
+            else if (count === 2) gridEl.classList.add('count-2');
+            else if (count === 3 || count === 4) gridEl.classList.add('count-3');
+            else if (count > 4) gridEl.classList.add('count-over');
+
+            if (count === 0) {
                 textEl.style.display = 'block';
                 gridEl.style.display = 'none';
             } else {
@@ -1162,7 +1187,7 @@
                     box.className = 'image-item-box';
                     box.innerHTML = `
                         <img src="${imgSrc}" alt="이미지">
-                        <button class="image-item-delete" type="button" onclick="removeImg('${cellId}', ${idx}, event)" title="삭제"><i class="fa-solid x fa-xmark"></i>✕</button>
+                        <button class="image-item-delete" type="button" onclick="removeImg('${cellId}', ${idx}, event)" title="삭제">✕</button>
                     `;
                     gridEl.appendChild(box);
                 });
@@ -1176,7 +1201,6 @@
             const db = window.dbData || [];
             let existingRow = editingId ? db.find(d => d.id === editingId) : null;
 
-            // 현재 입력창에 등록된 이미지 배열 확보 (없으면 기존 데이터 유지)
             let finalBeforeList = imagesObj.beforeCell.length > 0 ? imagesObj.beforeCell : (existingRow ? (existingRow.beforeImgs || (existingRow.beforeImg ? [existingRow.beforeImg] : [])) : []);
             let finalAfterList = imagesObj.afterCell.length > 0 ? imagesObj.afterCell : (existingRow ? (existingRow.afterImgs || (existingRow.afterImg ? [existingRow.afterImg] : [])) : []);
 
@@ -1194,8 +1218,8 @@
                 completeDate: document.getElementById('input-complete-date').value,
                 beforeImgs: finalBeforeList,
                 afterImgs: finalAfterList,
-                beforeImg: finalBeforeList[0] || '', // 호환성용
-                afterImg: finalAfterList[0] || '',   // 호환성용
+                beforeImg: finalBeforeList[0] || '',
+                afterImg: finalAfterList[0] || '',
                 regDate: existingRow ? (existingRow.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
             };
 
@@ -1231,7 +1255,6 @@
             document.getElementById('input-plan-date').value = row.planDate || '';
             document.getElementById('input-complete-date').value = row.completeDate || '';
 
-            // 이미지 배열 로드 (하위 호환 처리 포함)
             imagesObj.beforeCell = row.beforeImgs ? [...row.beforeImgs] : (row.beforeImg ? [row.beforeImg] : []);
             imagesObj.afterCell = row.afterImgs ? [...row.afterImgs] : (row.afterImg ? [row.afterImg] : []);
 
@@ -1344,11 +1367,9 @@
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 5.0, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
 
-                    // 다중 이미지 슬라이드 배치 지원 로직
                     const bList = item.beforeImgs || (item.beforeImg ? [item.beforeImg] : []);
                     const aList = item.afterImgs || (item.afterImg ? [item.afterImg] : []);
 
-                    // 개선 전 이미지 최대 4장 배치 (2x2 그리드 형태)
                     bList.slice(0, 4).forEach((imgSrc, imgIdx) => {
                         const col = imgIdx % 2;
                         const row = Math.floor(imgIdx / 2);
@@ -1360,7 +1381,6 @@
                         slide.addImage({ ...imgOpt, x: posX, y: posY, w: imgW, h: imgH, sizing: { type: 'contain', w: imgW, h: imgH } });
                     });
 
-                    // 개선 후 이미지 최대 4장 배치 (2x2 그리드 형태)
                     aList.slice(0, 4).forEach((imgSrc, imgIdx) => {
                         const col = imgIdx % 2;
                         const row = Math.floor(imgIdx / 2);
