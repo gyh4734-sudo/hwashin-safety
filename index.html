@@ -107,7 +107,7 @@
 
         .col-header { background-color: var(--header-light-blue); height: 30px; text-align: center; font-weight: bold; font-size: 15px; }
         
-        /* 동적 이미지 그리드 영역 스타일 */
+        /* 사진 개수에 따른 동적 그리드 영역 스타일 */
         .image-cell { height: 380px; position: relative; background-color: #fafafa; padding: 5px; vertical-align: top; }
         .image-cell.focused { outline: 3px solid var(--primary-blue); outline-offset: -3px; }
         
@@ -117,28 +117,26 @@
             display: grid;
             gap: 4px;
             margin-bottom: 5px;
-            overflow-y: auto;
+            overflow: hidden;
             align-content: center;
             justify-content: center;
         }
         
-        /* 사진 개수에 따른 동적 그리드 클래스 */
+        /* 사진 1장: 1×1 큰 화면 채우기 */
         .image-grid-container.count-1 {
             grid-template-columns: 1fr;
             grid-template-rows: 1fr;
         }
+        /* 사진 2장: 좌우 2분할 배치 */
         .image-grid-container.count-2 {
             grid-template-columns: repeat(2, 1fr);
             grid-template-rows: 1fr;
         }
+        /* 사진 3~4장: 2×2 격자 형태 균등 배치 */
         .image-grid-container.count-3,
         .image-grid-container.count-4 {
             grid-template-columns: repeat(2, 1fr);
             grid-template-rows: repeat(2, 1fr);
-        }
-        .image-grid-container.count-over {
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(auto-fill, minmax(140px, 1fr));
         }
 
         .image-item-box {
@@ -363,9 +361,9 @@
                                     <!-- 개선 전 동적 이미지 영역 -->
                                     <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
                                         <div id="beforeGrid" class="image-grid-container count-1"></div>
-                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
+                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부 (최대 4장)</div>
                                         <div class="image-cell-bottom-bar">
-                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
+                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 최대 4장 등록 가능</span>
                                             <button class="img-action-btn" type="button" onclick="document.getElementById('beforeInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i> 파일 찾기</button>
                                         </div>
                                         <input type="file" id="beforeInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
@@ -374,9 +372,9 @@
                                     <!-- 개선 후 동적 이미지 영역 -->
                                     <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
                                         <div id="afterGrid" class="image-grid-container count-1"></div>
-                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
+                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부 (최대 4장)</div>
                                         <div class="image-cell-bottom-bar">
-                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
+                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 최대 4장 등록 가능</span>
                                             <button class="img-action-btn" type="button" onclick="document.getElementById('afterInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i> 파일 찾기</button>
                                         </div>
                                         <input type="file" id="afterInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
@@ -1107,6 +1105,10 @@
             const files = e.target.files;
             if (!files || files.length === 0) return;
             for (let f of files) {
+                if (imagesObj[id].length >= 4) {
+                    alert('사진은 최대 4장까지만 등록할 수 있습니다.');
+                    break;
+                }
                 await appendImg(f, id);
             }
             e.target.value = '';
@@ -1118,6 +1120,10 @@
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for(let item of items) {
                 if(item.type.indexOf('image') !== -1) {
+                    if (imagesObj[selectedCell].length >= 4) {
+                        alert('사진은 최대 4장까지만 등록할 수 있습니다.');
+                        break;
+                    }
                     await appendImg(item.getAsFile(), selectedCell);
                     break;
                 }
@@ -1145,6 +1151,7 @@
         }
 
         async function appendImg(file, cellId) {
+            if (imagesObj[cellId].length >= 4) return;
             const compressedBase64 = await compressImage(file);
             imagesObj[cellId].push(compressedBase64);
             renderImageGrid(cellId);
@@ -1156,7 +1163,7 @@
             renderImageGrid(cellId);
         }
 
-        /* 사진 개수별 동적 그리드 클래스 적용 함수 */
+        /* 사진 1~4장 조건별 동적 그리드 클래스 및 레이아웃 적용 함수 */
         function renderImageGrid(cellId) {
             const isBefore = (cellId === 'beforeCell');
             const gridId = isBefore ? 'beforeGrid' : 'afterGrid';
@@ -1168,13 +1175,11 @@
 
             gridEl.innerHTML = '';
             
-            // 기존 그리드 개수 클래스 초기화 후 동적 부여
             gridEl.className = 'image-grid-container';
             const count = list.length;
             if (count === 1) gridEl.classList.add('count-1');
             else if (count === 2) gridEl.classList.add('count-2');
             else if (count === 3 || count === 4) gridEl.classList.add('count-3');
-            else if (count > 4) gridEl.classList.add('count-over');
 
             if (count === 0) {
                 textEl.style.display = 'block';
@@ -1182,7 +1187,7 @@
             } else {
                 textEl.style.display = 'none';
                 gridEl.style.display = 'grid';
-                list.forEach((imgSrc, idx) => {
+                list.slice(0, 4).forEach((imgSrc, idx) => {
                     const box = document.createElement('div');
                     box.className = 'image-item-box';
                     box.innerHTML = `
@@ -1201,8 +1206,8 @@
             const db = window.dbData || [];
             let existingRow = editingId ? db.find(d => d.id === editingId) : null;
 
-            let finalBeforeList = imagesObj.beforeCell.length > 0 ? imagesObj.beforeCell : (existingRow ? (existingRow.beforeImgs || (existingRow.beforeImg ? [existingRow.beforeImg] : [])) : []);
-            let finalAfterList = imagesObj.afterCell.length > 0 ? imagesObj.afterCell : (existingRow ? (existingRow.afterImgs || (existingRow.afterImg ? [existingRow.afterImg] : [])) : []);
+            let finalBeforeList = imagesObj.beforeCell.length > 0 ? imagesObj.beforeCell.slice(0, 4) : (existingRow ? (existingRow.beforeImgs || (existingRow.beforeImg ? [existingRow.beforeImg] : [])).slice(0, 4) : []);
+            let finalAfterList = imagesObj.afterCell.length > 0 ? imagesObj.afterCell.slice(0, 4) : (existingRow ? (existingRow.afterImgs || (existingRow.afterImg ? [existingRow.afterImg] : [])).slice(0, 4) : []);
 
             const recordData = {
                 category: currentCategory,
@@ -1255,8 +1260,8 @@
             document.getElementById('input-plan-date').value = row.planDate || '';
             document.getElementById('input-complete-date').value = row.completeDate || '';
 
-            imagesObj.beforeCell = row.beforeImgs ? [...row.beforeImgs] : (row.beforeImg ? [row.beforeImg] : []);
-            imagesObj.afterCell = row.afterImgs ? [...row.afterImgs] : (row.afterImg ? [row.afterImg] : []);
+            imagesObj.beforeCell = row.beforeImgs ? [...row.beforeImgs].slice(0, 4) : (row.beforeImg ? [row.beforeImg] : []);
+            imagesObj.afterCell = row.afterImgs ? [...row.afterImgs].slice(0, 4) : (row.afterImg ? [row.afterImg] : []);
 
             renderImageGrid('beforeCell');
             renderImageGrid('afterCell');
@@ -1334,6 +1339,7 @@
             XLSX.writeFile(workbook, `안전점검내역_${currentCategory}_${new Date().toISOString().substring(0,10)}.xlsx`);
         }
 
+        /* PPT 내보내기 시 최대 4장 제한 반영 */
         function exportToPPT() {
             try {
                 const exportList = getTargetExportData();
@@ -1367,27 +1373,38 @@
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 5.0, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
 
-                    const bList = item.beforeImgs || (item.beforeImg ? [item.beforeImg] : []);
-                    const aList = item.afterImgs || (item.afterImg ? [item.afterImg] : []);
+                    const bList = (item.beforeImgs || (item.beforeImg ? [item.beforeImg] : [])).slice(0, 4);
+                    const aList = (item.afterImgs || (item.afterImg ? [item.afterImg] : [])).slice(0, 4);
 
-                    bList.slice(0, 4).forEach((imgSrc, imgIdx) => {
-                        const col = imgIdx % 2;
-                        const row = Math.floor(imgIdx / 2);
-                        const imgW = 2.3;
-                        const imgH = 1.8;
-                        const posX = 0.25 + (col * 2.4);
-                        const posY = 1.4 + (row * 1.9);
+                    // PPT 내 사진 배치 로직 (1장~4장 대응)
+                    bList.forEach((imgSrc, imgIdx) => {
+                        let posX, posY, imgW, imgH;
+                        if (bList.length === 1) {
+                            posX = 0.4; posY = 1.45; imgW = 4.4; imgH = 3.6;
+                        } else if (bList.length === 2) {
+                            const col = imgIdx;
+                            posX = 0.3 + (col * 2.4); posY = 2.2; imgW = 2.2; imgH = 2.0;
+                        } else {
+                            const col = imgIdx % 2;
+                            const row = Math.floor(imgIdx / 2);
+                            posX = 0.3 + (col * 2.4); posY = 1.45 + (row * 1.9); imgW = 2.2; imgH = 1.8;
+                        }
                         const imgOpt = imgSrc.startsWith('http') ? { path: imgSrc } : { data: imgSrc };
                         slide.addImage({ ...imgOpt, x: posX, y: posY, w: imgW, h: imgH, sizing: { type: 'contain', w: imgW, h: imgH } });
                     });
 
-                    aList.slice(0, 4).forEach((imgSrc, imgIdx) => {
-                        const col = imgIdx % 2;
-                        const row = Math.floor(imgIdx / 2);
-                        const imgW = 2.3;
-                        const imgH = 1.8;
-                        const posX = 5.05 + (col * 2.4);
-                        const posY = 1.4 + (row * 1.9);
+                    aList.forEach((imgSrc, imgIdx) => {
+                        let posX, posY, imgW, imgH;
+                        if (aList.length === 1) {
+                            posX = 5.2; posY = 1.45; imgW = 4.4; imgH = 3.6;
+                        } else if (aList.length === 2) {
+                            const col = imgIdx;
+                            posX = 5.1 + (col * 2.4); posY = 2.2; imgW = 2.2; imgH = 2.0;
+                        } else {
+                            const col = imgIdx % 2;
+                            const row = Math.floor(imgIdx / 2);
+                            posX = 5.1 + (col * 2.4); posY = 1.45 + (row * 1.9); imgW = 2.2; imgH = 1.8;
+                        }
                         const imgOpt = imgSrc.startsWith('http') ? { path: imgSrc } : { data: imgSrc };
                         slide.addImage({ ...imgOpt, x: posX, y: posY, w: imgW, h: imgH, sizing: { type: 'contain', w: imgW, h: imgH } });
                     });
@@ -1532,12 +1549,12 @@
                                     }
 
                                     if (xPos > 0 && xPos < 4500000) {
-                                        beforeImgs.push(base64Str);
+                                        if (beforeImgs.length < 4) beforeImgs.push(base64Str);
                                     } else if (xPos >= 4500000) {
-                                        afterImgs.push(base64Str);
+                                        if (afterImgs.length < 4) afterImgs.push(base64Str);
                                     } else {
-                                        if (beforeImgs.length === 0) beforeImgs.push(base64Str);
-                                        else afterImgs.push(base64Str);
+                                        if (beforeImgs.length < 4) beforeImgs.push(base64Str);
+                                        else if (afterImgs.length < 4) afterImgs.push(base64Str);
                                     }
                                 }
                             }
@@ -1597,8 +1614,8 @@
                             guideDate: guideDate,
                             planDate: planDate,
                             completeDate: completeDate,
-                            beforeImgs: beforeImgs,
-                            afterImgs: afterImgs,
+                            beforeImgs: beforeImgs.slice(0, 4),
+                            afterImgs: afterImgs.slice(0, 4),
                             beforeImg: beforeImgs[0] || '',
                             afterImg: afterImgs[0] || '',
                             regDate: guideDate || new Date().toISOString().substring(0, 10)
