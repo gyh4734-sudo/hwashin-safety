@@ -23,7 +23,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: var(--bg-gray); font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; padding: 20px; color: #333; }
 
-        /* 로그인 모달 스타일 (오류가 나던 background 코드에서 잘못된 점 생략 부분을 깔끔한 그라데이션으로 수정 완료) */
+        /* 로그인 모달 스타일 */
         .modal-overlay {
             position: fixed; inset: 0; 
             background: linear-gradient(rgba(0, 38, 89, 0.85), rgba(0, 20, 50, 0.95));
@@ -106,17 +106,76 @@
         .ppt-table th, .ppt-table td { border: 1px solid var(--border-black); padding: 0; vertical-align: middle; font-size: 13px; }
 
         .col-header { background-color: var(--header-light-blue); height: 30px; text-align: center; font-weight: bold; font-size: 15px; }
-        .image-cell { height: 380px; position: relative; background-color: #fafafa; text-align: center; cursor: pointer; }
+        
+        /* 다중 이미지 셀 영역 디자인 */
+        .image-cell { height: 380px; position: relative; background-color: #fafafa; padding: 5px; vertical-align: top; }
         .image-cell.focused { outline: 3px solid var(--primary-blue); outline-offset: -3px; }
+        
+        .image-grid-container {
+            width: 100%;
+            height: 315px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 4px;
+            margin-bottom: 5px;
+            overflow-y: auto;
+        }
+        .image-item-box {
+            position: relative;
+            background: #eee;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 140px;
+        }
+        .image-item-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .image-item-delete {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-item-delete:hover { background: #dc3545; }
 
-        .dropzone-text { color: #777; font-size: 13px; line-height: 1.6; }
-        .dropzone-text i { font-size: 32px; color: #aaa; margin-bottom: 8px; }
+        .dropzone-text { color: #777; font-size: 12px; line-height: 1.4; text-align: center; padding: 20px 0; }
+        .dropzone-text i { font-size: 28px; color: #aaa; margin-bottom: 5px; }
         .dropzone-text .highlight { color: var(--primary-blue); font-weight: bold; }
 
-        .preview-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .image-controls { position: absolute; top: 5px; right: 5px; display: none; gap: 5px; z-index: 10; }
-        .image-cell:hover .image-controls { display: flex; }
-        .img-btn { background: rgba(0,0,0,0.6); color: white; border: none; width: 26px; height: 26px; border-radius: 3px; cursor: pointer; }
+        .image-cell-bottom-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 5px;
+        }
+        .img-action-btn {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .img-action-btn:hover { opacity: 0.9; }
 
         .label-cell { background-color: var(--label-gray); font-weight: bold; text-align: center; letter-spacing: 1px; }
         .input-cell { padding: 3px 6px !important; }
@@ -280,23 +339,26 @@
                             </thead>
                             <tbody>
                                 <tr>
+                                    <!-- 개선 전 다중 이미지 영역 -->
                                     <td colspan="4" class="image-cell focused" id="beforeCell" onclick="selectCell('beforeCell')" tabindex="0">
-                                        <div class="image-controls">
-                                            <button class="img-btn" title="파일 직접 찾기" onclick="document.getElementById('beforeInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i></button>
-                                            <button class="img-btn" title="이미지 삭제" onclick="clearImg('beforeCell', event)"><i class="fa-solid fa-trash"></i></button>
+                                        <div id="beforeGrid" class="image-grid-container"></div>
+                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
+                                        <div class="image-cell-bottom-bar">
+                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
+                                            <button class="img-action-btn" type="button" onclick="document.getElementById('beforeInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i> 파일 찾기</button>
                                         </div>
-                                        <div class="dropzone-text" id="beforeText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역을 선택 후<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
-                                        <img id="beforeImg" class="preview-img" style="display:none;">
-                                        <input type="file" id="beforeInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
+                                        <input type="file" id="beforeInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'beforeCell')">
                                     </td>
+                                    
+                                    <!-- 개선 후 다중 이미지 영역 -->
                                     <td colspan="4" class="image-cell" id="afterCell" onclick="selectCell('afterCell')" tabindex="0">
-                                        <div class="image-controls">
-                                            <button class="img-btn" title="파일 직접 찾기" onclick="document.getElementById('afterInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i></button>
-                                            <button class="img-btn" title="이미지 삭제" onclick="clearImg('afterCell', event)"><i class="fa-solid fa-trash"></i></button>
+                                        <div id="afterGrid" class="image-grid-container"></div>
+                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역 선택 후 <span class="highlight">Ctrl+V</span> 또는 파일 첨부</div>
+                                        <div class="image-cell-bottom-bar">
+                                            <span style="font-size: 11px; color: #555; font-weight: bold;">사진 복수 등록 가능</span>
+                                            <button class="img-action-btn" type="button" onclick="document.getElementById('afterInput').click(); event.stopPropagation();"><i class="fa-solid fa-folder-open"></i> 파일 찾기</button>
                                         </div>
-                                        <div class="dropzone-text" id="afterText"><i class="fa-solid fa-cloud-arrow-up"></i><br>이 영역을 선택 후<br><span class="highlight">Ctrl + V (붙여넣기)</span></div>
-                                        <img id="afterImg" class="preview-img" style="display:none;">
-                                        <input type="file" id="afterInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
+                                        <input type="file" id="afterInput" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event, 'afterCell')">
                                     </td>
                                 </tr>
 
@@ -522,26 +584,49 @@
             }
         }
 
+        // 다중 이미지 배열 처리용 스토리지 업로드 헬퍼
+        async function processImagesArrayForUpload(imgArray, prefix) {
+            const uploadedUrls = [];
+            for (let img of imgArray) {
+                if (img.startsWith('data:image')) {
+                    const url = await uploadImageToStorage(img, prefix);
+                    uploadedUrls.push(url);
+                } else {
+                    uploadedUrls.push(img); // 이미 업로드된 URL인 경우
+                }
+            }
+            return uploadedUrls;
+        }
+
         window.saveRecordToFirestore = async function(recordData) {
             try {
                 window.showToast('이미지 업로드 및 저장 중...');
 
-                if (recordData.beforeImg) {
-                    recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
-                }
-                if (recordData.afterImg) {
-                    recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
-                }
+                // 배열 단위로 이미지 업로드 처리 (다중 이미지 지원)
+                recordData.beforeImgs = await processImagesArrayForUpload(recordData.beforeImgs, 'before');
+                recordData.afterImgs = await processImagesArrayForUpload(recordData.afterImgs, 'after');
+
+                // 하위 호환성을 위해 단일 필드도 첫 번째 이미지로 동기화
+                recordData.beforeImg = recordData.beforeImgs[0] || '';
+                recordData.afterImg = recordData.afterImgs[0] || '';
 
                 if (window.editingId) {
                     const oldDocSnap = await getDoc(doc(db, "checklists", window.editingId));
                     if (oldDocSnap.exists()) {
                         const oldData = oldDocSnap.data();
-                        if (oldData.beforeImg && oldData.beforeImg !== recordData.beforeImg) {
-                            await deleteStorageImage(oldData.beforeImg);
+                        
+                        // 이전 이미지들 중 이번에 포함되지 않은 파일들은 스토리지에서 삭제 정돈
+                        const oldBeforeList = oldData.beforeImgs || (oldData.beforeImg ? [oldData.beforeImg] : []);
+                        for (let oldImg of oldBeforeList) {
+                            if (!recordData.beforeImgs.includes(oldImg)) {
+                                await deleteStorageImage(oldImg);
+                            }
                         }
-                        if (oldData.afterImg && oldData.afterImg !== recordData.afterImg) {
-                            await deleteStorageImage(oldData.afterImg);
+                        const oldAfterList = oldData.afterImgs || (oldData.afterImg ? [oldData.afterImg] : []);
+                        for (let oldImg of oldAfterList) {
+                            if (!recordData.afterImgs.includes(oldImg)) {
+                                await deleteStorageImage(oldImg);
+                            }
                         }
                     }
 
@@ -564,11 +649,13 @@
             try {
                 window.showToast('이미지 업로드 및 데이터 복원 중...');
                 for (let recordData of recordsArray) {
-                    if (recordData.beforeImg) {
-                        recordData.beforeImg = await uploadImageToStorage(recordData.beforeImg, 'before');
+                    if (recordData.beforeImgs) {
+                        recordData.beforeImgs = await processImagesArrayForUpload(recordData.beforeImgs, 'before');
+                        recordData.beforeImg = recordData.beforeImgs[0] || '';
                     }
-                    if (recordData.afterImg) {
-                        recordData.afterImg = await uploadImageToStorage(recordData.afterImg, 'after');
+                    if (recordData.afterImgs) {
+                        recordData.afterImgs = await processImagesArrayForUpload(recordData.afterImgs, 'after');
+                        recordData.afterImg = recordData.afterImgs[0] || '';
                     }
                     recordData.createdAt = serverTimestamp();
                     await addDoc(collection(db, "checklists"), recordData);
@@ -599,8 +686,10 @@
                 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (data.beforeImg) await deleteStorageImage(data.beforeImg);
-                    if (data.afterImg) await deleteStorageImage(data.afterImg);
+                    const bList = data.beforeImgs || (data.beforeImg ? [data.beforeImg] : []);
+                    const aList = data.afterImgs || (data.afterImg ? [data.afterImg] : []);
+                    for (let img of bList) await deleteStorageImage(img);
+                    for (let img of aList) await deleteStorageImage(img);
                 }
 
                 await deleteDoc(docRef);
@@ -631,8 +720,10 @@
                     
                     if (docSnap.exists()) {
                         const data = docSnap.data();
-                        if (data.beforeImg) await deleteStorageImage(data.beforeImg);
-                        if (data.afterImg) await deleteStorageImage(data.afterImg);
+                        const bList = data.beforeImgs || (data.beforeImg ? [data.beforeImg] : []);
+                        const aList = data.afterImgs || (data.afterImg ? [data.afterImg] : []);
+                        for (let img of bList) await deleteStorageImage(img);
+                        for (let img of aList) await deleteStorageImage(img);
                     }
 
                     await deleteDoc(docRef);
@@ -652,7 +743,10 @@
         let currentCategory = '안전 브레인 스토밍';
         let selectedCell = 'beforeCell';
         let editingId = null;
-        let images = { beforeCell: '', afterCell: '' };
+        
+        // 다중 이미지 배열 관리를 위한 객체 (최대 수 제한 없이 추가 가능하도록 확장)
+        let imagesObj = { beforeCell: [], afterCell: [] };
+
         let currentFilterDate = new Date();
         let isDateAscending = true;
 
@@ -666,6 +760,8 @@
             document.getElementById('input-guide-date').value = now.toISOString().substring(0, 10);
             initFilterPicker();
             updateCategoryUI();
+            renderImageGrid('beforeCell');
+            renderImageGrid('afterCell');
         };
 
         function switchCategory(categoryName) {
@@ -734,8 +830,10 @@
 
             db.forEach(item => {
                 totalBytes += JSON.stringify(item).length;
-                if (item.beforeImg && typeof item.beforeImg === 'string') totalBytes += item.beforeImg.length;
-                if (item.afterImg && typeof item.afterImg === 'string') totalBytes += item.afterImg.length;
+                const bList = item.beforeImgs || (item.beforeImg ? [item.beforeImg] : []);
+                const aList = item.afterImgs || (item.afterImg ? [item.afterImg] : []);
+                bList.forEach(img => { if(typeof img === 'string') totalBytes += img.length; });
+                aList.forEach(img => { if(typeof img === 'string') totalBytes += img.length; });
             });
 
             const totalMB = totalBytes / (1024 * 1024);
@@ -809,7 +907,8 @@
         }
 
         function hasAfterImage(row) {
-            return !!(row && row.afterImg && String(row.afterImg).trim() !== '');
+            const aList = row.afterImgs || (row.afterImg ? [row.afterImg] : []);
+            return aList.length > 0 && String(aList[0]).trim() !== '';
         }
 
         function refreshDataView() {
@@ -988,15 +1087,22 @@
             document.getElementById(id).classList.add('focused'); 
         }
 
-        function handleFileSelect(e, id) { const f = e.target.files[0]; if(f) renderImg(f, id); }
+        async function handleFileSelect(e, id) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            for (let f of files) {
+                await appendImg(f, id);
+            }
+            e.target.value = ''; // 초기화하여 동일 파일 재선택 가능하게 함
+        }
 
-        document.addEventListener('paste', (e) => {
+        document.addEventListener('paste', async (e) => {
             const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
             if(activeTag === 'textarea' || activeTag === 'input') return;
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for(let item of items) {
                 if(item.type.indexOf('image') !== -1) {
-                    renderImg(item.getAsFile(), selectedCell);
+                    await appendImg(item.getAsFile(), selectedCell);
                     break;
                 }
             }
@@ -1022,23 +1128,45 @@
             });
         }
 
-        async function renderImg(file, id) {
+        async function appendImg(file, cellId) {
             const compressedBase64 = await compressImage(file);
-            images[id] = compressedBase64;
-            const isBefore = (id === 'beforeCell');
-            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').src = compressedBase64;
-            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').style.display = 'block';
-            document.getElementById(isBefore ? 'beforeText' : 'afterText').style.display = 'none';
+            imagesObj[cellId].push(compressedBase64);
+            renderImageGrid(cellId);
         }
 
-        function clearImg(id, event) {
+        function removeImg(cellId, index, event) {
             if(event) event.stopPropagation();
-            images[id] = '';
-            const isBefore = (id === 'beforeCell');
-            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').src = '';
-            document.getElementById(isBefore ? 'beforeImg' : 'afterImg').style.display = 'none';
-            document.getElementById(isBefore ? 'beforeText' : 'afterText').style.display = 'block';
-            document.getElementById(isBefore ? 'beforeInput' : 'afterInput').value = '';
+            imagesObj[cellId].splice(index, 1);
+            renderImageGrid(cellId);
+        }
+
+        function renderImageGrid(cellId) {
+            const isBefore = (cellId === 'beforeCell');
+            const gridId = isBefore ? 'beforeGrid' : 'afterGrid';
+            const textId = isBefore ? 'beforeText' : 'afterText';
+            const inputId = isBefore ? 'beforeInput' : 'afterInput';
+            
+            const gridEl = document.getElementById(gridId);
+            const textEl = document.getElementById(textId);
+            const list = imagesObj[cellId];
+
+            gridEl.innerHTML = '';
+            if (list.length === 0) {
+                textEl.style.display = 'block';
+                gridEl.style.display = 'none';
+            } else {
+                textEl.style.display = 'none';
+                gridEl.style.display = 'grid';
+                list.forEach((imgSrc, idx) => {
+                    const box = document.createElement('div');
+                    box.className = 'image-item-box';
+                    box.innerHTML = `
+                        <img src="${imgSrc}" alt="이미지">
+                        <button class="image-item-delete" type="button" onclick="removeImg('${cellId}', ${idx}, event)" title="삭제"><i class="fa-solid x fa-xmark"></i>✕</button>
+                    `;
+                    gridEl.appendChild(box);
+                });
+            }
         }
 
         function saveRecord() {
@@ -1046,10 +1174,11 @@
             if(!itemVal) { alert('안건 내용을 입력해주세요.'); return; }
 
             const db = window.dbData || [];
-            
             let existingRow = editingId ? db.find(d => d.id === editingId) : null;
-            let finalBeforeImg = images.beforeCell !== '' ? images.beforeCell : (existingRow ? existingRow.beforeImg : '');
-            let finalAfterImg = images.afterCell !== '' ? images.afterCell : (existingRow ? existingRow.afterImg : '');
+
+            // 현재 입력창에 등록된 이미지 배열 확보 (없으면 기존 데이터 유지)
+            let finalBeforeList = imagesObj.beforeCell.length > 0 ? imagesObj.beforeCell : (existingRow ? (existingRow.beforeImgs || (existingRow.beforeImg ? [existingRow.beforeImg] : [])) : []);
+            let finalAfterList = imagesObj.afterCell.length > 0 ? imagesObj.afterCell : (existingRow ? (existingRow.afterImgs || (existingRow.afterImg ? [existingRow.afterImg] : [])) : []);
 
             const recordData = {
                 category: currentCategory,
@@ -1063,8 +1192,10 @@
                 guideDate: document.getElementById('input-guide-date').value,
                 planDate: document.getElementById('input-plan-date').value,
                 completeDate: document.getElementById('input-complete-date').value,
-                beforeImg: finalBeforeImg,
-                afterImg: finalAfterImg,
+                beforeImgs: finalBeforeList,
+                afterImgs: finalAfterList,
+                beforeImg: finalBeforeList[0] || '', // 호환성용
+                afterImg: finalAfterList[0] || '',   // 호환성용
                 regDate: existingRow ? (existingRow.regDate || new Date().toISOString().substring(0, 10)) : new Date().toISOString().substring(0, 10)
             };
 
@@ -1100,20 +1231,13 @@
             document.getElementById('input-plan-date').value = row.planDate || '';
             document.getElementById('input-complete-date').value = row.completeDate || '';
 
-            clearImg('beforeCell'); clearImg('afterCell');
-            
-            if(row.beforeImg) {
-                images.beforeCell = row.beforeImg;
-                document.getElementById('beforeImg').src = row.beforeImg;
-                document.getElementById('beforeImg').style.display = 'block';
-                document.getElementById('beforeText').style.display = 'none';
-            }
-            if(row.afterImg) {
-                images.afterCell = row.afterImg;
-                document.getElementById('afterImg').src = row.afterImg;
-                document.getElementById('afterImg').style.display = 'block';
-                document.getElementById('afterText').style.display = 'none';
-            }
+            // 이미지 배열 로드 (하위 호환 처리 포함)
+            imagesObj.beforeCell = row.beforeImgs ? [...row.beforeImgs] : (row.beforeImg ? [row.beforeImg] : []);
+            imagesObj.afterCell = row.afterImgs ? [...row.afterImgs] : (row.afterImg ? [row.afterImg] : []);
+
+            renderImageGrid('beforeCell');
+            renderImageGrid('afterCell');
+
             updateHeaderDate();
             refreshDataView();
         }
@@ -1136,7 +1260,11 @@
             document.getElementById('input-plan-date').value = '';
             document.getElementById('input-complete-date').value = '';
 
-            clearImg('beforeCell'); clearImg('afterCell');
+            imagesObj.beforeCell = [];
+            imagesObj.afterCell = [];
+            renderImageGrid('beforeCell');
+            renderImageGrid('afterCell');
+
             updateCategoryUI();
         }
 
@@ -1216,14 +1344,33 @@
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 0.2, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
                     slide.addShape(pptx.shapes.RECTANGLE, { x: 5.0, y: 1.35, w: 4.8, h: 3.8, fill: { color: 'FAFAFA' }, line: { color: '111111', pt: 1 } });
 
-                    if(item.beforeImg) {
-                        const imgOpt = item.beforeImg.startsWith('http') ? { path: item.beforeImg } : { data: item.beforeImg };
-                        slide.addImage({ ...imgOpt, x: 0.25, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
-                    }
-                    if(item.afterImg) {
-                        const imgOpt = item.afterImg.startsWith('http') ? { path: item.afterImg } : { data: item.afterImg };
-                        slide.addImage({ ...imgOpt, x: 5.05, y: 1.4, w: 4.7, h: 3.7, sizing: { type: 'contain', w: 4.7, h: 3.7 } });
-                    }
+                    // 다중 이미지 슬라이드 배치 지원 로직
+                    const bList = item.beforeImgs || (item.beforeImg ? [item.beforeImg] : []);
+                    const aList = item.afterImgs || (item.afterImg ? [item.afterImg] : []);
+
+                    // 개선 전 이미지 최대 4장 배치 (2x2 그리드 형태)
+                    bList.slice(0, 4).forEach((imgSrc, imgIdx) => {
+                        const col = imgIdx % 2;
+                        const row = Math.floor(imgIdx / 2);
+                        const imgW = 2.3;
+                        const imgH = 1.8;
+                        const posX = 0.25 + (col * 2.4);
+                        const posY = 1.4 + (row * 1.9);
+                        const imgOpt = imgSrc.startsWith('http') ? { path: imgSrc } : { data: imgSrc };
+                        slide.addImage({ ...imgOpt, x: posX, y: posY, w: imgW, h: imgH, sizing: { type: 'contain', w: imgW, h: imgH } });
+                    });
+
+                    // 개선 후 이미지 최대 4장 배치 (2x2 그리드 형태)
+                    aList.slice(0, 4).forEach((imgSrc, imgIdx) => {
+                        const col = imgIdx % 2;
+                        const row = Math.floor(imgIdx / 2);
+                        const imgW = 2.3;
+                        const imgH = 1.8;
+                        const posX = 5.05 + (col * 2.4);
+                        const posY = 1.4 + (row * 1.9);
+                        const imgOpt = imgSrc.startsWith('http') ? { path: imgSrc } : { data: imgSrc };
+                        slide.addImage({ ...imgOpt, x: posX, y: posY, w: imgW, h: imgH, sizing: { type: 'contain', w: imgW, h: imgH } });
+                    });
 
                     slide.addTable([
                         [
@@ -1278,7 +1425,7 @@
                 const slideFiles = Object.keys(zip.files).filter(fileName => fileName.startsWith('ppt/slides/slide') && fileName.endsWith('.xml'));
 
                 if (slideFiles.length === 0) {
-                    alert('유효한 PPT 슬라이드가 없습니다.');
+                    alert('유효한 슬라이드가 없습니다.');
                     return;
                 }
 
@@ -1417,9 +1564,6 @@
                     const planDate = extractDate('계획일자') || extractDate('계획 일자') || '';
                     const completeDate = extractDate('완료일자') || extractDate('완료 일자') || '';
 
-                    const beforeImg = beforeImgs[0] || '';
-                    const afterImg = afterImgs[0] || '';
-
                     if (item) {
                         importedRecords.push({
                             category: currentCategory,
@@ -1433,8 +1577,10 @@
                             guideDate: guideDate,
                             planDate: planDate,
                             completeDate: completeDate,
-                            beforeImg: beforeImg,
-                            afterImg: afterImg,
+                            beforeImgs: beforeImgs,
+                            afterImgs: afterImgs,
+                            beforeImg: beforeImgs[0] || '',
+                            afterImg: afterImgs[0] || '',
                             regDate: guideDate || new Date().toISOString().substring(0, 10)
                         });
                     }
