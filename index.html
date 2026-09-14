@@ -4,10 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HWASHIN 예산공장 안전점검 통합 관리 System</title>
-    <!-- PPTX, XLSX 및 JSZip 외부 라이브러리 -->
+    <!-- PPTX, XLSX, JSZip 및 Chart.js 외부 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <style>
@@ -122,55 +123,20 @@
             justify-content: center;
         }
         
-        /* 사진 1장: 1×1 큰 화면 채우기 */
-        .image-grid-container.count-1 {
-            grid-template-columns: 1fr;
-            grid-template-rows: 1fr;
-        }
-        /* 사진 2장: 좌우 2분할 배치 */
-        .image-grid-container.count-2 {
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: 1fr;
-        }
-        /* 사진 3~4장: 2×2 격자 형태 균등 배치 */
+        .image-grid-container.count-1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        .image-grid-container.count-2 { grid-template-columns: repeat(2, 1fr); grid-template-rows: 1fr; }
         .image-grid-container.count-3,
-        .image-grid-container.count-4 {
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-        }
+        .image-grid-container.count-4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
 
         .image-item-box {
-            position: relative;
-            background: #eee;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100%;
+            position: relative; background: #eee; border: 1px solid #ddd; border-radius: 3px;
+            overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
         }
-        .image-item-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
+        .image-item-box img { width: 100%; height: 100%; object-fit: contain; }
         .image-item-delete {
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            background: rgba(220, 53, 69, 0.8);
-            color: white;
-            border: none;
-            width: 22px;
-            height: 22px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute; top: 2px; right: 2px; background: rgba(220, 53, 69, 0.8);
+            color: white; border: none; width: 22px; height: 22px; border-radius: 3px; cursor: pointer;
+            font-size: 11px; display: flex; align-items: center; justify-content: center;
         }
         .image-item-delete:hover { background: #dc3545; }
 
@@ -178,21 +144,10 @@
         .dropzone-text i { font-size: 28px; color: #aaa; margin-bottom: 5px; }
         .dropzone-text .highlight { color: var(--primary-blue); font-weight: bold; }
 
-        .image-cell-bottom-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 5px;
-        }
+        .image-cell-bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; }
         .img-action-btn {
-            background: var(--primary-blue);
-            color: white;
-            border: none;
-            padding: 4px 8px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: bold;
+            background: var(--primary-blue); color: white; border: none; padding: 4px 8px;
+            border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: bold;
         }
         .img-action-btn:hover { opacity: 0.9; }
 
@@ -229,30 +184,10 @@
         .bg-before { background-color: #dc3545; }
         .bg-after { background-color: #28a745; }
 
-        .pagination-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 5px;
-            margin-top: 15px;
-        }
-        .page-btn {
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 10px;
-            font-size: 12px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .page-btn.active {
-            background: var(--primary-blue);
-            color: #fff;
-            border-color: var(--primary-blue);
-            font-weight: bold;
-        }
-        .page-btn:hover:not(.active) {
-            background: #e9ecef;
-        }
+        .pagination-container { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 15px; }
+        .page-btn { background: #fff; border: 1px solid #ccc; padding: 5px 10px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+        .page-btn.active { background: var(--primary-blue); color: #fff; border-color: var(--primary-blue); font-weight: bold; }
+        .page-btn:hover:not(.active) { background: #e9ecef; }
 
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 56, 130, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
         .toast.show { opacity: 1; }
@@ -463,6 +398,26 @@
                     <tbody id="matrix-body">
                     </tbody>
                 </table>
+            </div>
+
+            <!-- 부서별 총 지적 건수 막대 그래프 카드 (신규 추가) -->
+            <div class="card">
+                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fa-solid fa-chart-bar"></i> 부서별 총 지적 건수 그래프</span>
+                    <div class="filter-bar" style="padding: 2px 8px;">
+                        <span style="font-size: 12px; font-weight: bold; margin-right: 4px;">분류:</span>
+                        <select id="chart-category-filter" onchange="refreshDataView()" style="font-size: 12px; padding: 2px 4px;">
+                            <option value="ALL">전체 합산 보기</option>
+                            <option value="노사합동점검">노사합동점검</option>
+                            <option value="안전 브레인 스토밍">안전 브레인 스토밍</option>
+                            <option value="안전지킴이">안전지킴이</option>
+                            <option value="협의체점검">협의체점검</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="position: relative; height: 240px; width: 100%;">
+                    <canvas id="deptBarChart"></canvas>
+                </div>
             </div>
 
             <!-- 조회 점검목록 카드 -->
@@ -767,6 +722,7 @@
         let currentPage = 1;
         const rowsPerPage = 10;
         let selectedIds = new Set();
+        let deptChartInstance = null; // Chart.js 인스턴스 전역 관리
 
         window.onload = function() {
             const now = new Date();
@@ -928,6 +884,7 @@
         function refreshDataView() {
             const pList = getPeriodFilteredData();
             renderMatrixStats(pList);
+            renderDeptBarChart(); // 부서별 막대 그래프 렌더링 업데이트
             const fList = getFilteredAndSortedData();
             renderListWithPagination(fList);
         }
@@ -958,6 +915,92 @@
                 html += `<td style="font-weight:bold;">${totalVal}</td></tr>`;
             });
             document.getElementById('matrix-body').innerHTML = html;
+        }
+
+        /* 부서별 총 지적 건수 막대 그래프 렌더링 함수 */
+        function renderDeptBarChart() {
+            const chartCategory = document.getElementById('chart-category-filter').value;
+            const filterType = document.getElementById('filter-type').value;
+            const db = window.dbData || [];
+
+            // 기간 필터링이 적용된 데이터 추출
+            let targetData = db.filter(item => {
+                if (chartCategory !== 'ALL' && item.category !== chartCategory) return false;
+                if (filterType === 'all') return true;
+                if (!item.guideDate) return false;
+                
+                const parts = item.guideDate.split('-');
+                if (parts.length !== 3) return false;
+                const t = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+
+                if (filterType === 'daily') {
+                    return t.getFullYear() === currentFilterDate.getFullYear() &&
+                           t.getMonth() === currentFilterDate.getMonth() &&
+                           t.getDate() === currentFilterDate.getDate();
+                }
+                if (filterType === 'weekly') { 
+                    const s = new Date(currentFilterDate); s.setDate(s.getDate()-3); s.setHours(0,0,0,0);
+                    const e = new Date(currentFilterDate); e.setDate(e.getDate()+3); e.setHours(23,59,59,999);
+                    return t >= s && t <= e; 
+                }
+                if (filterType === 'monthly') return t.getFullYear() === currentFilterDate.getFullYear() && t.getMonth() === currentFilterDate.getMonth();
+                if (filterType === 'yearly') return t.getFullYear() === currentFilterDate.getFullYear();
+                return true;
+            });
+
+            // 부서별 총 지적 건수 합산
+            const counts = TARGET_TEAMS.map(team => {
+                return targetData.filter(d => d.target === team).length;
+            });
+
+            const ctx = document.getElementById('deptBarChart').getContext('2d');
+            
+            if (deptChartInstance) {
+                deptChartInstance.destroy();
+            }
+
+            deptChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: TARGET_TEAMS,
+                    datasets: [{
+                        label: '총 지적 건수',
+                        data: counts,
+                        backgroundColor: 'rgba(0, 56, 130, 0.8)',
+                        borderColor: 'rgba(0, 56, 130, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: { size: 11, weight: 'bold' }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` 지적 건수: ${context.raw}건`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function renderListWithPagination(fullList) {
@@ -1163,7 +1206,6 @@
             renderImageGrid(cellId);
         }
 
-        /* 사진 1~4장 조건별 동적 그리드 클래스 및 레이아웃 적용 함수 */
         function renderImageGrid(cellId) {
             const isBefore = (cellId === 'beforeCell');
             const gridId = isBefore ? 'beforeGrid' : 'afterGrid';
@@ -1339,7 +1381,6 @@
             XLSX.writeFile(workbook, `안전점검내역_${currentCategory}_${new Date().toISOString().substring(0,10)}.xlsx`);
         }
 
-        /* PPT 내보내기 시 최대 4장 제한 반영 */
         function exportToPPT() {
             try {
                 const exportList = getTargetExportData();
@@ -1376,7 +1417,6 @@
                     const bList = (item.beforeImgs || (item.beforeImg ? [item.beforeImg] : [])).slice(0, 4);
                     const aList = (item.afterImgs || (item.afterImg ? [item.afterImg] : [])).slice(0, 4);
 
-                    // PPT 내 사진 배치 로직 (1장~4장 대응)
                     bList.forEach((imgSrc, imgIdx) => {
                         let posX, posY, imgW, imgH;
                         if (bList.length === 1) {
